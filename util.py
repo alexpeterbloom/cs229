@@ -24,7 +24,7 @@ def get_first_x_features(df, x = 30):
     return sub_df.values.flatten()
 
 def load_dataset(csv_files, change, x = 30):
-    X, y, pct_changes = [], []
+    X, y, pct_changes = [], [], []
     num_processed = 0
 
     for csv_file in csv_files:
@@ -155,7 +155,6 @@ def train_model_and_pred(X_train, y_train, X_test, model):
 def gather_all_csv(folder_names):
     all_csv = []
     for folder in folder_names:
-        folder = "data/" + folder
         if os.path.isdir(folder):
             for fname in os.listdir(folder):
                 if fname.endswith(".csv"):
