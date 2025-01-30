@@ -28,7 +28,7 @@ from lightgbm import LGBMClassifier
 from catboost import CatBoostClassifier
 
 
-VOTES_NEEDED = 5
+VOTES_NEEDED = 4
 
 
 
@@ -41,7 +41,7 @@ def logisticVoting(all_preds):
 
 def continuousVoting(all_preds):
     pred = sum(all_preds)/len(all_preds)
-    return 1 if pred > 0 else 0
+    return 1 if pred > 80 else 0
 
 
 def test_individual_models(models, train_folders, test_folders, change, continuous, eval_data, first_min = 30):
@@ -122,8 +122,15 @@ def main():
     
     clear_screen()
 
-    train_folders = ["data/jan" + str(i) + "_ohlcv_padded" for i in range(1, 10)]
-    test_folders = ['data/jan' + str(i) + "_ohlcv_padded" for i in range(10, 16)]
+    january = ["data/jan" + str(i) + "_ohlcv_padded" for i in range(1, 16)]
+    dec = ["data/dec0" + str(i) + "_ohlcv_padded" for i in range(1, 10)]
+    dec.append("data/dec10_ohlcv_padded")
+    nov = ["data/nov0" + str(i) + "_ohlcv_padded" for i in range(1, 10)]
+    nov.append("data/nov10_ohlcv_padded")
+
+    train_folders = dec + nov
+    test_folders = january
+
 
     averageModels(categorical_models, train_folders, test_folders, 1, logisticVoting, logistic_eval, graph = True)
 
