@@ -8,7 +8,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.svm import SVC
-
+import matplotlib.pyplot as plt
 
 
 #util: contains utility functions used in many files
@@ -23,10 +23,18 @@ def get_first_x_features(df, x = 30):
     sub_df = df.iloc[:x, 1:6] #taking columns one to five
     return sub_df.values.flatten()
 
-def load_dataset(csv_files, change, x = 30):
+def continuous_eval(final_open, open_x, change):
+    return ((final_open - open_x)/ open_x) * 100
+
+
+def logistic_eval(final_open, open_x, change):
+    label = 0 if final_open <= change * open_x else 1
+    return label
+
+def load_dataset(csv_files, change, x, evalution_func, store_full_df = False):
     X, y, pct_changes = [], [], []
     num_processed = 0
-
+    full_dfs = []
     for csv_file in csv_files:
         num_processed += 1
 
@@ -56,7 +64,7 @@ def load_dataset(csv_files, change, x = 30):
         #switched to this rather than final close for clarity
         final_open = df.iloc[-1, 1]
 
-        label = 0 if final_open <= change * open_x else 1
+        label = evalution_func(final_open, open_x, change)
 
         pct_change = ((final_open - open_x)/ open_x) * 100
 
@@ -64,23 +72,67 @@ def load_dataset(csv_files, change, x = 30):
         y.append(label)
         pct_changes.append(pct_change)
 
+        if store_full_df:
+            full_dfs.append(df)
+
     X = np.array(X)
     y = np.array(y)
     pct_changes = np.array(pct_changes)
 
     print(f"Total CSV files processed: {num_processed}")
     print(f"Total in dataset: {len(X)}")
-
+    if store_full_df:
+        return X, y, pct_changes, full_dfs
+    
     return X, y, pct_changes
+
+def graphTimeSeries(test_dfs, preds):
+    all_time_series = []
+
+    for i, df in enumerate(test_dfs):
+        if preds[i] == 1: 
+            open_x = df.iloc[30, 1]
+            price_series = df.iloc[30:, 1].values
+            movement_series = ((price_series - open_x) / open_x) * 100
+            all_time_series.append(movement_series)
+
+    all_time_series = np.array(all_time_series)
+
+    if len(all_time_series) == 0:
+        print("We didn't predict any coins")
+    else:
+        avg_time_series = all_time_series.mean(axis=0)
+
+        plt.figure(figsize=(10,6))
+        plt.plot(avg_time_series, label='Average movement for Predicted=1')
+        plt.axhline(0, color='red', linestyle='--')
+        plt.xlabel("Minute Index (starting from 30)")
+        plt.ylabel("Percent Movement from Minute 30 Open")
+        plt.title("Average Time‐Series Movement (Predicted=1 Coins)")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
+        final_avg_movement = avg_time_series[-1]
+        print(f"Final average movement after 10 hours (predicted=1): {final_avg_movement:.2f}%")
+
 
 def average_percent_change(pct_changes):
     return float(np.mean(pct_changes))
 
 
-def evaluate(preds, y_test, pct_test):
+def evaluate(preds, y_test, pct_test, continuous = False):
     print()
     print()
     print()
+
+    if continuous:
+        new_y_test = [1 if i > 0 else 0 for i in y_test]
+        new_preds = [1 if i > 0 else 0 for i in preds]
+        preds, y_test = new_preds, new_y_test
+
+
+    preds = np.array(preds)
     cm = confusion_matrix(y_test, preds)
     if cm.shape == (1, 1):
         print("Test set was all predicted to be same thing")
@@ -134,6 +186,8 @@ def evaluate(preds, y_test, pct_test):
 
 
 
+
+
 #useful for both continuous and categorical
 def train_model_and_pred(X_train, y_train, X_test, model):
     if len(X_train) == 0:
@@ -161,6 +215,9 @@ def gather_all_csv(folder_names):
                     all_csv.append(os.path.join(folder, fname))
     return all_csv
 
+def clear_screen():
+    for i in range(300):
+        print()
 
 
 
