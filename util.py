@@ -77,7 +77,10 @@ def average_percent_change(pct_changes):
     return float(np.mean(pct_changes))
 
 
-def evaluate(preds, y_test):
+def evaluate(preds, y_test, pct_test):
+    print()
+    print()
+    print()
     cm = confusion_matrix(y_test, preds)
     if cm.shape == (1, 1):
         print("Test set was all predicted to be same thing")
@@ -85,17 +88,42 @@ def evaluate(preds, y_test):
         return
     
     tn, fp, fn, tp = cm.ravel()
+    if (tn + fn == 0 or tp + fp == 0):
+        print('We predicted all to be one type so we cannot evaluate')
+        return
+    
     neg_pred_acc = (tn)/(tn + fn)
     pos_pred_acc = (tp)/(tp + fp)
+
+    print(f'Total Test Set Size: {total_test}')
+    print()
+
+
     print(f'{round(100 * neg_pred_acc)}% of our 0 preds were correct')
     print(f'{round(100 * pos_pred_acc)}% of our 1 preds were correct')
+    
+
+    print('Confusion Matrix')
+    print(cm)
 
     total_test = len(y_test)
     num_zeros = np.sum(y_test == 0)
+    num_ones = np.sum(y_test == 1)
+
+    pred_0_changes = [p for p, pr in zip(pct_test, preds) if pr == 0]
+    pred_1_changes = [p for p, pr in zip(pct_test, preds) if pr == 1]
+
+ 
+    avg_0 = np.mean(pred_0_changes)
+    avg_1 = np.mean(pred_1_changes)
+
+    print(f'Average change conditional on predicting 0: {round(avg_0, 1)}')
+    print(f'Average change conditional on predicting 1: {round(avg_1, 1)}')
+
 
 
 #both 
-def train_and_evaluate(X_train, y_train, X_test, y_test, pct_test, model):
+def train_and_evaluate(X_train, y_train, X_test, model):
     if len(X_train) == 0:
         print("No Training Examples")
         return
@@ -109,6 +137,7 @@ def train_and_evaluate(X_train, y_train, X_test, y_test, pct_test, model):
     
     model.fit(X_train, y_train)
     preds = model.predict(X_test)
+    return preds
 
  
 
