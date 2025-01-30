@@ -1,12 +1,14 @@
 import requests
 import json
-from dune_client.client import DuneClient
 import time
 import csv
 from datetime import datetime
 import pandas as pd
 
 chain = "solana"
+
+
+
 
 ################# Getting data on graduating coins for a specific day ############################
 
@@ -448,8 +450,8 @@ list_of_days_19_26 = [['jan20Coins', 'jan20_ohlcv'],
                       ['jan26Coins', 'jan26_ohlcv']
     ]
 
-# for day in list_of_days:
-#     get_full_ohlcv_from_allTokens(f'{day[0]}.csv',  day[1])
+for day in december_days[10:]:
+     get_full_ohlcv_from_allTokens(f'{day[0]}.csv',  day[1])
 
 # for day in list_of_days_19_26:
 #     get_full_ohlcv_from_allTokens_solscan(f'{day[0]}.csv',  day[1])
