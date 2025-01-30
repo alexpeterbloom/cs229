@@ -58,7 +58,7 @@ def load_dataset(csv_files, change, x = 30):
 
         label = 0 if final_open <= change * open_x else 1
 
-        pct_change = ((final_close - open_x)/ open_x) * 100
+        pct_change = ((final_open - open_x)/ open_x) * 100
 
         X.append(features)
         y.append(label)
@@ -92,13 +92,25 @@ def evaluate(preds, y_test, pct_test):
         print('We predicted all to be one type so we cannot evaluate')
         return
     
-    neg_pred_acc = (tn)/(tn + fn)
-    pos_pred_acc = (tp)/(tp + fp)
 
+    total_test = len(y_test)
     print(f'Total Test Set Size: {total_test}')
     print()
 
 
+    num_zeros = np.sum(y_test == 0)
+    num_ones = np.sum(y_test == 1)
+    print(f'In the actual dataset, there are {num_zeros} that are 0 and {num_ones} that are 1')
+    print()
+
+    num_zeros_pred = np.sum(preds == 0)
+    num_ones_pred = np.sum(preds == 1)
+
+    print(f'We predicted {num_zeros_pred} to be 0 and {num_ones_pred} to be 1')
+
+
+    neg_pred_acc = (tn)/(tn + fn)
+    pos_pred_acc = (tp)/(tp + fp)
     print(f'{round(100 * neg_pred_acc)}% of our 0 preds were correct')
     print(f'{round(100 * pos_pred_acc)}% of our 1 preds were correct')
     
@@ -106,9 +118,9 @@ def evaluate(preds, y_test, pct_test):
     print('Confusion Matrix')
     print(cm)
 
-    total_test = len(y_test)
-    num_zeros = np.sum(y_test == 0)
-    num_ones = np.sum(y_test == 1)
+
+
+
 
     pred_0_changes = [p for p, pr in zip(pct_test, preds) if pr == 0]
     pred_1_changes = [p for p, pr in zip(pct_test, preds) if pr == 1]
@@ -122,8 +134,8 @@ def evaluate(preds, y_test, pct_test):
 
 
 
-#both 
-def train_and_evaluate(X_train, y_train, X_test, model):
+#useful for both continuous and categorical
+def train_model_and_pred(X_train, y_train, X_test, model):
     if len(X_train) == 0:
         print("No Training Examples")
         return
@@ -140,6 +152,17 @@ def train_and_evaluate(X_train, y_train, X_test, model):
     return preds
 
  
+def gather_all_csv(folder_names):
+    all_csv = []
+    for folder in folder_names:
+        folder = "data/" + folder
+        if os.path.isdir(folder):
+            for fname in os.listdir(folder):
+                if fname.endswith(".csv"):
+                    all_csv.append(os.path.join(folder, fname))
+    return all_csv
+
+
 
 
     
