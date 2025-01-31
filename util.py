@@ -67,8 +67,11 @@ def load_dataset(csv_files, change, x, evalution_func, store_full_df = False):
         label = evalution_func(final_open, open_x, change)
 
         pct_change = ((final_open - open_x)/ open_x) * 100
-        if pct_change > 10000:
-            print('Massive change', csv_file)
+        #remove
+        pct_change = min(pct_change, 500)
+
+
+
         X.append(features)
         y.append(label)
         pct_changes.append(pct_change)
