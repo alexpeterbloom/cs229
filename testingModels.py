@@ -91,6 +91,22 @@ def averageModels(models, train_folders, test_folders, change, predict_1_func, e
     preds = [1 if predict_1_func(all_preds) == 1 else 0 for all_preds in all_predictions]
 
 
+    max_up = 0
+    total = 0
+    total_sum = 0
+    for i in range(len(preds)):
+        if preds[i] == 1:
+            result = pct_test[i]
+            total += 1
+            total_sum += result
+            if result > max_up:
+                max_up = result
+            print(result)
+    if (total == 0):
+        print('predicted nothing')
+        return
+    
+    print(f'max: {max_up}, average: {total_sum/total}, count: {total}')
     evaluate(preds, y_test, pct_test)
 
     if graph:
@@ -123,14 +139,16 @@ def main():
     clear_screen()
 
     january = ["data/jan" + str(i) + "_ohlcv_padded" for i in range(1, 16)]
+
+
     dec = ["data/dec0" + str(i) + "_ohlcv_padded" for i in range(1, 10)]
-    dec.append("data/dec10_ohlcv_padded")
+    dec2 = ["data/dec" + str(i) + "_ohlcv_padded" for i in range(10, 27)]
+    dec = dec + dec2
     nov = ["data/nov0" + str(i) + "_ohlcv_padded" for i in range(1, 10)]
     nov.append("data/nov10_ohlcv_padded")
 
-    train_folders = dec + nov
-    test_folders = january
-
+    train_folders = ["data/nov02_ohlcv_padded"]
+    print(train_folder 
 
     averageModels(categorical_models, train_folders, test_folders, 1, logisticVoting, logistic_eval, graph = True)
 

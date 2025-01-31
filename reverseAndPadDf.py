@@ -8,7 +8,7 @@ def reverse_df(df):
 
 
 #pad the dataframe so it has 600 rows
-def pad_timestamps(df, desired_rows = 600, step = 60):
+def pad_timestamps(df, new_path, desired_rows = 600, step = 60):
     if df.empty:
         print('Problem: Empty Dataframe When Padding')
     new_rows = []
@@ -29,6 +29,7 @@ def pad_timestamps(df, desired_rows = 600, step = 60):
             elif gap < step:
                 print('MAJOR PROBLEM')
                 print('Problem: When padding difference between rows is less than 60')
+                print(f'Path: {new_path} on index {len(new_rows)}')
                 real_idx += 1
             else:
                 filler = new_rows[-1].copy()
@@ -89,7 +90,7 @@ def pad_csv_folders(folder_list, desired_rows = 600, step = 60):
 
                 df = reverse_df(df)
 
-                df = pad_timestamps(df, desired_rows=desired_rows, step=step)
+                df = pad_timestamps(df, new_path, desired_rows=desired_rows, step=step)
 
                 df.to_csv(new_path, index=False)
                 counter += 1
@@ -121,11 +122,8 @@ def cutOffDf(folder, numRowsToInclude):
             df.to_csv(new_path, index = False)
         
 def paddingMain():
-    folders = ["data/" +  "nov0" + str(i) + "_ohlcv" for i in range(1, 10)]
-    folders.append('data/nov10_ohlcv')
-    folders2 = ["data/" +  "dec0" + str(i) + "_ohlcv" for i in range(1, 10)]
-    folders2.append('data/dec10.ohlcv')
-    folders += folders2
-    pad_csv_folders(['data/dec10_ohlcv'])
+    folder = ["data/" +  "dec" + str(i) + "_ohlcv" for i in range(11, 27)]
+
+    pad_csv_folders(folder)
 
 paddingMain()
