@@ -32,7 +32,7 @@ from datetime import datetime
 
 
 def get_day_of_the_week(month, day):
-    upper_month = month.upper()
+    upper_month = month.capitalize()
     months_last_year = ['NOV', 'DEC']
     if upper_month in months_last_year:
         current_year = 2024
@@ -79,7 +79,7 @@ def load_dataset(csv_files, change, x, day_of_week, evalution_func, store_full_d
     X, y, pct_changes = [], [], []
     num_processed = 0
     full_dfs = []
-    for day, csv_file in zip(day_of_week, csv_file):
+    for day, csv_file in zip(day_of_week, csv_files):
         num_processed += 1
 
         if not os.path.isfile(csv_file) or os.path.getsize(csv_file) == 0:
@@ -96,7 +96,7 @@ def load_dataset(csv_files, change, x, day_of_week, evalution_func, store_full_d
             print(f'Problem: Failed To Read Dataframe in Util with error {e}')
             continue
 
-        features = get_first_x_features(df, day, True, x= x)
+        features = get_first_x_features(df, -1, True, x= x)
         if features is None or df.shape[0] <= x:
             print("Problem: Not Enough Rows in Util")
             continue
@@ -134,13 +134,13 @@ def load_dataset(csv_files, change, x, day_of_week, evalution_func, store_full_d
     
     return X, y, pct_changes
 
-def graphTimeSeries(test_dfs, preds):
+def graphTimeSeries(test_dfs, preds, x = 30):
     all_time_series = []
 
     for i, df in enumerate(test_dfs):
         if preds[i] == 1: 
-            open_x = df.iloc[30, 1]
-            price_series = df.iloc[30:, 1].values
+            open_x = df.iloc[x, 1]
+            price_series = df.iloc[x:, 1].values
             movement_series = ((price_series - open_x) / open_x) * 100
             all_time_series.append(movement_series)
 
@@ -264,13 +264,10 @@ def gather_all_csv(folder_names):
 
         month = info[1][:3]
         day = info[1][3:5]
-        print(day, month)
         day_of_week = get_day_of_the_week(month, day)
-        print(month, day)
         if os.path.isdir(folder):
             for fname in os.listdir(folder):
                 if fname.endswith(".csv"):
-                    print(fname)
                     info = fname.split("_")
                     month = info[0][:3]
                     day = info[0][3:5]

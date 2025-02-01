@@ -1,3 +1,5 @@
+Use: source venv/bin/activate && export PATH=$(pwd)/venv/bin:$PATH
+
 Thoughts:
 
 Time series problems

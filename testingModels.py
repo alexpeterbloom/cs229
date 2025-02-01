@@ -33,19 +33,19 @@ VOTES_NEEDED = 4
 
 
 def mixed_pred_func(all_preds):
-    sum = 0
+    total_sum = 0
     average_abs = 0
     count = 0
     for pred in all_preds:
         if pred == 1:
-            sum += 50
+            total_sum += 50
         elif pred == 0:
-            sum -= 50
+            total_sum -= 50
         else:
-            sum += pred
+            total_sum += pred
             average_abs += abs(pred)
             count += 1
-    if (sum/len(all_preds)) > 35:
+    if (total_sum/len(all_preds)) > 35:
         return 1
     return 0
 
@@ -233,13 +233,18 @@ def main():
 
     clear_screen()
 
-    january_train = ["data/jan" + str(i) + "_ohlcv_padded" for i in range(1, 16)]
+    january_train1 = ["data/jan0" + str(i) + "_ohlcv_padded" for i in range(1, 10)]
+    january_train2 = ["data/jan" + str(i) + "_ohlcv_padded" for i in range(10, 16)]
+    january_train = january_train1 + january_train2
+
+
     january_test = ["data/jan" + str(i) + "_ohlcv_padded" for i in range(16, 30)]
     january_test.remove("data/jan18_ohlcv_padded")
 
-    dec = ["data/dec0" + str(i) + "_ohlcv_padded" for i in range(1, 10)]
+
+    dec1 = ["data/dec0" + str(i) + "_ohlcv_padded" for i in range(1, 10)]
     dec2 = ["data/dec" + str(i) + "_ohlcv_padded" for i in range(10, 32)]
-    dec = dec + dec2
+    dec = dec1 + dec2
     nov = ["data/nov0" + str(i) + "_ohlcv_padded" for i in range(1, 10)]
     nov.append("data/nov10_ohlcv_padded")
 
@@ -257,7 +262,8 @@ def main():
 
     print('beginning baseline')
     
-    splits = [[dec + january_train, nov], [dec + january_train, nov], [nov + dec, january_train]]
+    splits = [[january_train + dec2, dec1 + nov], [january_train + nov, dec1 + dec2], [nov, dec1], [nov + dec1, dec2], [nov + dec1 + dec2, january_train]]
+    
     for pair in splits:
         train_folders = pair[0]
         test_folders = pair[1]
