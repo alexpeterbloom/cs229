@@ -9,19 +9,63 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.svm import SVC
 import matplotlib.pyplot as plt
-
+import math
+from datetime import datetime
 
 #util: contains utility functions used in many files
+
+
+    #month_str = month_str.capitalize()
+    
+    # Get the current year
+    #current_year = datetime.now().year
+    
+    # Create a date string in the format "Nov 09 2025" (for example)
+    #date_str = f"{month_str} {day_str} {current_year}"
+    
+    # Parse the date string using strptime with the format "%b %d %Y"
+    #date_obj = datetime.strptime(date_str, "%b %d %Y")
+    
+    # datetime.weekday() returns 0 for Monday, 6 for Sunday.
+    # Adding 1 adjusts the range to 1 (Monday) through 7 (Sunday).
+
+
+
+def get_day_of_the_week(month, day):
+    upper_month = month.upper()
+    months_last_year = ['NOV', 'DEC']
+    if upper_month in months_last_year:
+        current_year = 2024
+    else:
+        current_year = 2025
+    date_str = f"{upper_month} {day} {current_year}"
+    date_obj = datetime.strptime(date_str, "%b %d %Y")
+    return date_obj.weekday()
 
 
 
 #optimize: change which features you're taking
 #optimize: change how many minutes in the beginning you're taking
-def get_first_x_features(df, x = 30):
-    if df.shape[0] < x:
-        print("Problem: There are less than 30 features in data")
+def get_first_x_features(df, day_of_week, include_time, x = 30):
     sub_df = df.iloc[:x, 1:6] #taking columns one to five
-    return sub_df.values.flatten()
+    flattened = sub_df.values.flatten()
+    if include_time:
+        start_time = 1730400000
+        minutes_in_day = 60 * 24
+        if df.shape[0] < x:
+            print("Problem: There are less than 30 features in data")
+        startTime = (df.iloc[0, 0] - start_time)/60
+        timeOfDay = startTime % minutes_in_day
+        timeInTwoPiRange = (2 * math.pi * timeOfDay)/ 1440
+        sin_time = math.sin(timeInTwoPiRange)
+        cos_time = math.cos(timeInTwoPiRange)
+        flattened = np.append(flattened, [sin_time, cos_time])
+    if day_of_week != -1:
+        flattened = np.append(flattened, day_of_week)
+    return flattened
+
+
+
 
 def continuous_eval(final_open, open_x, change):
     return ((final_open - open_x)/ open_x) * 100
@@ -31,11 +75,11 @@ def logistic_eval(final_open, open_x, change):
     label = 0 if final_open <= change * open_x else 1
     return label
 
-def load_dataset(csv_files, change, x, evalution_func, store_full_df = False):
+def load_dataset(csv_files, change, x, day_of_week, evalution_func, store_full_df = False):
     X, y, pct_changes = [], [], []
     num_processed = 0
     full_dfs = []
-    for csv_file in csv_files:
+    for day, csv_file in zip(day_of_week, csv_file):
         num_processed += 1
 
         if not os.path.isfile(csv_file) or os.path.getsize(csv_file) == 0:
@@ -52,7 +96,7 @@ def load_dataset(csv_files, change, x, evalution_func, store_full_df = False):
             print(f'Problem: Failed To Read Dataframe in Util with error {e}')
             continue
 
-        features = get_first_x_features(df, x= x)
+        features = get_first_x_features(df, day, True, x= x)
         if features is None or df.shape[0] <= x:
             print("Problem: Not Enough Rows in Util")
             continue
@@ -210,14 +254,29 @@ def train_model_and_pred(X_train, y_train, X_test, model):
     return preds
 
  
+
+
 def gather_all_csv(folder_names):
     all_csv = []
+    all_days = []
     for folder in folder_names:
+        info = folder.split("/")
+
+        month = info[1][:3]
+        day = info[1][3:5]
+        print(day, month)
+        day_of_week = get_day_of_the_week(month, day)
+        print(month, day)
         if os.path.isdir(folder):
             for fname in os.listdir(folder):
                 if fname.endswith(".csv"):
+                    print(fname)
+                    info = fname.split("_")
+                    month = info[0][:3]
+                    day = info[0][3:5]
+                    all_days.append(day_of_week)
                     all_csv.append(os.path.join(folder, fname))
-    return all_csv
+    return all_csv, all_days
 
 def clear_screen():
     for i in range(300):

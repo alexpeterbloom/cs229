@@ -65,8 +65,8 @@ def continuousVoting(all_preds):
 
 def test_individual_models(models, train_folders, test_folders, change, continuous, eval_data, first_min = 30):
 
-    train_csvs = gather_all_csv(train_folders)
-    test_csvs = gather_all_csv(test_folders)
+    train_csvs, days_of_week = gather_all_csv(train_folders)
+    test_csvs, days_of_week = gather_all_csv(test_folders)
 
     X_train, y_train, pct_train = load_dataset(train_csvs, change, first_min, eval_data)
     X_test,  y_test,  pct_test  = load_dataset(test_csvs, change, first_min, eval_data)
@@ -92,12 +92,12 @@ def graph_hist(data):
     plt.title('Histogram Example')
 
 def contAndLogistic(models, train_folders, test_folders, change, mixed_pred_func, graph, first_min = 30):
-    train_csvs = gather_all_csv(train_folders)
-    test_csvs = gather_all_csv(test_folders)
+    train_csvs, days_of_week_train = gather_all_csv(train_folders)
+    test_csvs, days_of_week_test = gather_all_csv(test_folders)
 
-    X_train_cont, y_train_cont, pct_train, datasets = load_dataset(train_csvs, change, first_min, continuous_eval, True)
-    X_train_log, y_train_log, pct_train, datasets = load_dataset(train_csvs, change, first_min, logistic_eval, True)
-    X_test,  y_test,  pct_test, datasets = load_dataset(test_csvs, change, first_min, logistic_eval, True)   
+    X_train_cont, y_train_cont, pct_train, datasets = load_dataset(train_csvs, change, first_min, days_of_week_train, continuous_eval, True)
+    X_train_log, y_train_log, pct_train, datasets = load_dataset(train_csvs, change, first_min, days_of_week_train, logistic_eval, True)
+    X_test,  y_test,  pct_test, datasets = load_dataset(test_csvs, change, first_min, days_of_week_test, logistic_eval, True)   
 
     print(f"Average % change (Train): {average_percent_change(pct_train):.2f}%")
     print(f"Average % change (Test) : {average_percent_change(pct_test):.2f}%\n")
@@ -234,7 +234,7 @@ def main():
     clear_screen()
 
     january_train = ["data/jan" + str(i) + "_ohlcv_padded" for i in range(1, 16)]
-    january_test = ["data/jan" + str(i) + "_ohlcv_padded" for i in range(16, 27)]
+    january_test = ["data/jan" + str(i) + "_ohlcv_padded" for i in range(16, 30)]
     january_test.remove("data/jan18_ohlcv_padded")
 
     dec = ["data/dec0" + str(i) + "_ohlcv_padded" for i in range(1, 10)]
@@ -243,23 +243,24 @@ def main():
     nov = ["data/nov0" + str(i) + "_ohlcv_padded" for i in range(1, 10)]
     nov.append("data/nov10_ohlcv_padded")
 
-    train_folders = dec + nov
-
+    train_folders = nov + dec + january_test
     test_folders = january_train
 
-    for train in train_folders:
-        if train in test_folders:
-            print("PANIC TRAINING AND TESTING OVERLAPPING")
+    #for train in train_folders:
+    #    if train in test_folders:
+    #        print("PANIC TRAINING AND TESTING OVERLAPPING")
 
-    print(train_folders)
-    print('')
-    print(test_folders)
 
-    print("beginning new cross val")
+    #print(train_folders)
+    #print('')
+    #print(test_folders)
+
+    print('beginning baseline')
     
-
-    train_folders = nov + dec + january_train
-    test_folders = january_test
-    contAndLogistic(allModels, train_folders, test_folders, 1, mixed_pred_func, False, 30)
+    splits = [[dec + january_train, nov], [dec + january_train, nov], [nov + dec, january_train]]
+    for pair in splits:
+        train_folders = pair[0]
+        test_folders = pair[1]
+        contAndLogistic(allModels, train_folders, test_folders, 1, mixed_pred_func, False, 30)
 
 main()

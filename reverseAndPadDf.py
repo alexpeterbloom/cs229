@@ -122,7 +122,7 @@ def cutOffDf(folder, numRowsToInclude):
             df.to_csv(new_path, index = False)
         
 def paddingMain():
-    folder = ["data/" +  "jan" + str(i) + "_ohlcv" for i in range(16, 27)]
+    folder = ["data/" +  "jan" + str(i) + "_ohlcv" for i in range(27, 30)]
     pad_csv_folders(folder)
 
 paddingMain()
