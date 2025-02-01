@@ -63,7 +63,7 @@ def continuousVoting(all_preds):
     return 1 if pred > 30 else 0
 
 
-def test_individual_models(models, train_folders, test_folders, change, continuous, eval_data, first_min = 30):
+def test_individual_models(models, train_folders, test_folders, change, continuous, eval_data, first_min):
 
     train_csvs, days_of_week = gather_all_csv(train_folders)
     test_csvs, days_of_week = gather_all_csv(test_folders)
@@ -91,13 +91,14 @@ def graph_hist(data):
     plt.ylabel('Frequency')
     plt.title('Histogram Example')
 
-def contAndLogistic(models, train_folders, test_folders, change, mixed_pred_func, graph, first_min = 30):
+def contAndLogistic(models, train_folders, test_folders, change, mixed_pred_func, graph, first_min):
     train_csvs, days_of_week_train = gather_all_csv(train_folders)
     test_csvs, days_of_week_test = gather_all_csv(test_folders)
 
-    X_train_cont, y_train_cont, pct_train, datasets = load_dataset(train_csvs, change, first_min, days_of_week_train, continuous_eval, True)
-    X_train_log, y_train_log, pct_train, datasets = load_dataset(train_csvs, change, first_min, days_of_week_train, logistic_eval, True)
-    X_test,  y_test,  pct_test, datasets = load_dataset(test_csvs, change, first_min, days_of_week_test, logistic_eval, True)   
+    X_train_cont, y_train_cont, pct_train, datasets = load_dataset(train_csvs, change, first_min, days_of_week_train, continuous_eval, True, False, False)
+    
+    X_train_log, y_train_log, pct_train, datasets = load_dataset(train_csvs, change, first_min, days_of_week_train, logistic_eval, True, False, False)
+    X_test,  y_test,  pct_test, datasets = load_dataset(test_csvs, change, first_min, days_of_week_test, logistic_eval, True, False, False)   
 
     print(f"Average % change (Train): {average_percent_change(pct_train):.2f}%")
     print(f"Average % change (Test) : {average_percent_change(pct_test):.2f}%\n")
@@ -150,7 +151,7 @@ def contAndLogistic(models, train_folders, test_folders, change, mixed_pred_func
 
 
 
-def averageModels(models, train_folders, test_folders, change, predict_1_func, eval_data, graph, first_min = 30):
+def averageModels(models, train_folders, test_folders, change, predict_1_func, eval_data, graph, first_min):
     train_csvs = gather_all_csv(train_folders)
     test_csvs = gather_all_csv(test_folders)
 
@@ -267,6 +268,6 @@ def main():
     for pair in splits:
         train_folders = pair[0]
         test_folders = pair[1]
-        contAndLogistic(allModels, train_folders, test_folders, 1, mixed_pred_func, False, 30)
+        contAndLogistic(allModels, train_folders, test_folders, 1, mixed_pred_func, False, 1)
 
 main()

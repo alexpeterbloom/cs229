@@ -15,25 +15,9 @@ from datetime import datetime
 #util: contains utility functions used in many files
 
 
-    #month_str = month_str.capitalize()
-    
-    # Get the current year
-    #current_year = datetime.now().year
-    
-    # Create a date string in the format "Nov 09 2025" (for example)
-    #date_str = f"{month_str} {day_str} {current_year}"
-    
-    # Parse the date string using strptime with the format "%b %d %Y"
-    #date_obj = datetime.strptime(date_str, "%b %d %Y")
-    
-    # datetime.weekday() returns 0 for Monday, 6 for Sunday.
-    # Adding 1 adjusts the range to 1 (Monday) through 7 (Sunday).
-
-
-
 def get_day_of_the_week(month, day):
     upper_month = month.capitalize()
-    months_last_year = ['NOV', 'DEC']
+    months_last_year = ['Nov', 'Dec']
     if upper_month in months_last_year:
         current_year = 2024
     else:
@@ -46,7 +30,7 @@ def get_day_of_the_week(month, day):
 
 #optimize: change which features you're taking
 #optimize: change how many minutes in the beginning you're taking
-def get_first_x_features(df, day_of_week, include_time, x = 30):
+def get_first_x_features(df, day_of_week, include_time, x):
     sub_df = df.iloc[:x, 1:6] #taking columns one to five
     flattened = sub_df.values.flatten()
     if include_time:
@@ -62,7 +46,8 @@ def get_first_x_features(df, day_of_week, include_time, x = 30):
         flattened = np.append(flattened, [sin_time, cos_time])
     if day_of_week != -1:
         flattened = np.append(flattened, day_of_week)
-    return flattened
+
+    return flattened[:3]
 
 
 
@@ -75,11 +60,11 @@ def logistic_eval(final_open, open_x, change):
     label = 0 if final_open <= change * open_x else 1
     return label
 
-def load_dataset(csv_files, change, x, day_of_week, evalution_func, store_full_df = False):
+def load_dataset(csv_files, change, x, days_of_week, evalution_func, store_full_df = False, include_day = False, include_time = False):
     X, y, pct_changes = [], [], []
     num_processed = 0
     full_dfs = []
-    for day, csv_file in zip(day_of_week, csv_files):
+    for day, csv_file in zip(days_of_week, csv_files):
         num_processed += 1
 
         if not os.path.isfile(csv_file) or os.path.getsize(csv_file) == 0:
@@ -95,8 +80,10 @@ def load_dataset(csv_files, change, x, day_of_week, evalution_func, store_full_d
         except Exception as e:
             print(f'Problem: Failed To Read Dataframe in Util with error {e}')
             continue
-
-        features = get_first_x_features(df, -1, True, x= x)
+        
+        if not include_day:
+            day = -1
+        features = get_first_x_features(df, day, include_time, x = x)
         if features is None or df.shape[0] <= x:
             print("Problem: Not Enough Rows in Util")
             continue
@@ -134,7 +121,7 @@ def load_dataset(csv_files, change, x, day_of_week, evalution_func, store_full_d
     
     return X, y, pct_changes
 
-def graphTimeSeries(test_dfs, preds, x = 30):
+def graphTimeSeries(test_dfs, preds, x):
     all_time_series = []
 
     for i, df in enumerate(test_dfs):
