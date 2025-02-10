@@ -47,7 +47,7 @@ def get_first_x_features(df, day_of_week, include_time, x):
     if day_of_week != -1:
         flattened = np.append(flattened, day_of_week)
 
-    return flattened[:3]
+    return flattened
 
 
 
@@ -84,6 +84,21 @@ def load_dataset(csv_files, change, x, days_of_week, evalution_func, store_full_
         if not include_day:
             day = -1
         features = get_first_x_features(df, day, include_time, x = x)
+        
+#         if (np.allclose(features, [4.07928183e-05, 1.25656050e-04, 1.20387510e-05, 1.21424630e-05,
+#   5.88205322e+04, 1.21424630e-05, 2.02759699e-05, 9.06843021e-06,
+#   1.21074602e-05, 2.01943234e+04, 1.21074602e-05, 1.56321601e-05,
+#   1.21074602e-05, 1.42079446e-05, 3.57333201e+03, 1.42079446e-05,
+#   2.00347483e-05, 1.40721797e-05, 1.85989413e-05, 2.85243408e+03,
+#   1.85989413e-05, 2.21320674e-05, 1.12410422e-05, 1.25264711e-05,
+#   4.49656988e+03, 1.25264711e-05, 1.41305027e-05, 9.57099761e-06,
+#   9.57099761e-06, 3.64394179e+03, 9.57099761e-06, 3.14449077e-05,
+#   8.49187646e-06, 1.51465422e-05, 3.07122017e+04, 1.51465422e-05,
+#   1.73767651e-05, 1.51465422e-05, 1.61199806e-05, 1.16673560e+03,
+#   1.61199806e-05, 1.61199806e-05, 1.54876866e-05, 1.54876866e-05,
+#   2.42026619e+02, 1.54876866e-05, 1.54876866e-05, 1.21733316e-05,
+#   1.29333018e-05, 9.57641795e+02], atol = 1e-08)):
+            #print(csv_file)
         if features is None or df.shape[0] <= x:
             print("Problem: Not Enough Rows in Util")
             continue
@@ -220,7 +235,10 @@ def evaluate(preds, y_test, pct_test, continuous = False):
     print(f'Average change conditional on predicting 1: {round(avg_1, 1)}')
 
 
-
+def print_overlap(df1, df2):
+    overlap = np.array([row for row in df1 if row.tolist() in df2.tolist()])
+    print(f'Overlap length of {len(overlap)}')
+    print(overlap)
 
 
 #useful for both continuous and categorical
@@ -235,12 +253,25 @@ def train_model_and_pred(X_train, y_train, X_test, model):
     if len(np.unique(y_train) ) < 2:
         print("Only one outcome in training data, can't train")
         return
-    
+    print_overlap(X_train, X_test)
+
+
+
+
+
+
     model.fit(X_train, y_train)
     preds = model.predict(X_test)
     return preds
 
  
+
+def make_fake_datapoints():
+    dp1 = [9.53537473e-05, 1.37633896e-04, 7.66842373e-05,]
+    dp2 = [1.00152780e-04, 1.61179280e-04, 1.00152780e-04]
+    dp3 = [8.59934543e-05, 8.63070882e-05, 8.56292548e-05]
+    return np.array([dp1, dp2, dp3])
+
 
 
 def gather_all_csv(folder_names):

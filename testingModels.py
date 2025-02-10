@@ -31,6 +31,51 @@ from catboost import CatBoostClassifier
 
 VOTES_NEEDED = 4
 
+TEST_VOTES = 3
+
+CATEGORICAL_MODELS  = {
+        "AdaBoost": AdaBoostClassifier(n_estimators=50),
+        "Extra Trees": ExtraTreesClassifier(n_estimators=100),
+        "HistGBM": HistGradientBoostingClassifier(max_iter=100),
+        "Bernoulli NB": BernoulliNB(),
+        "XGBoost": XGBClassifier(n_estimators=100),
+        "LightGBM": LGBMClassifier(n_estimators=100),
+        "CatBoost": CatBoostClassifier(iterations=100, verbose=False)
+    }
+
+REGRESSION_MODELS = {
+    "Random Forest": RandomForestRegressor(n_estimators=100),
+    "HistGBM": HistGradientBoostingRegressor(max_iter=100),
+    "XGBoost": XGBRegressor(n_estimators=100),
+    "LightGBM": LGBMRegressor(n_estimators=100),
+    }
+
+ONLYCONT = [
+        [RandomForestRegressor(n_estimators=100), 'Random Forest', 1],
+        [HistGradientBoostingRegressor(max_iter=100), "HistGradientBoost", 1],
+        [XGBRegressor(n_estimators=100),"XGB", 1],
+        [LGBMRegressor(n_estimators=100), 'LGBM', 1]
+]
+    
+ONLYLOG = [
+        [AdaBoostClassifier(n_estimators=50), "AdaBoost", 0],
+        [ExtraTreesClassifier(n_estimators=100), "ExtraTrees", 0],
+        [HistGradientBoostingClassifier(max_iter=100), "HistGradient", 0],
+        [BernoulliNB(), "Bernoulli", 0],
+        [XGBClassifier(n_estimators=100), 'XGB', 0],
+        [LGBMClassifier(n_estimators=100),'LGBM', 0],
+        [CatBoostClassifier(iterations=100, verbose=False) , 'CatBoost', 0]
+]
+
+TEST_MODELS = [
+    [HistGradientBoostingRegressor(max_iter=100), "HistGradientBoost", 1],
+    [XGBRegressor(n_estimators=100),"XGB", 1],
+    [AdaBoostClassifier(n_estimators=50), "AdaBoost", 0],
+    [ExtraTreesClassifier(n_estimators=100), "ExtraTrees", 0],
+     [XGBClassifier(n_estimators=100), 'XGB', 0],
+    [LGBMClassifier(n_estimators=100),'LGBM', 0],
+    [CatBoostClassifier(iterations=100, verbose=False) , 'CatBoost', 0]
+]
 
 def mixed_pred_func(all_preds):
     total_sum = 0
@@ -99,7 +144,7 @@ def contAndLogistic(models, train_folders, test_folders, change, mixed_pred_func
     
     X_train_log, y_train_log, pct_train, datasets = load_dataset(train_csvs, change, first_min, days_of_week_train, logistic_eval, True, False, False)
     X_test,  y_test,  pct_test, datasets = load_dataset(test_csvs, change, first_min, days_of_week_test, logistic_eval, True, False, False)   
-
+   
     print(f"Average % change (Train): {average_percent_change(pct_train):.2f}%")
     print(f"Average % change (Test) : {average_percent_change(pct_test):.2f}%\n")
 
@@ -149,6 +194,36 @@ def contAndLogistic(models, train_folders, test_folders, change, mixed_pred_func
     print()
     print()
 
+def train_and_test_on_fake_data(models, train_folders, change, predict_1_func, eval_data, first_min):
+    train_csvs = gather_all_csv(train_folders)
+    X_test = make_fake_datapoints()
+
+    X_train, y_train, pct_train, datasets = load_dataset(train_csvs, change, first_min, eval_data, True)
+
+
+    print(f"Average % change (Train): {average_percent_change(pct_train):.2f}%")
+    print(f"Average % change (Test) : {average_percent_change(pct_test):.2f}%\n")
+
+    all_predictions = [[] for i in range(len(X_test))]
+    for model_name, model in models.items():
+        print("-" * 50)
+        print(f"Model: {model_name}")
+        individual_preds = train_model_and_pred(X_train, y_train, X_test, model)
+        for index, p in enumerate(individual_preds):
+            all_predictions[index].append(p)
+
+    preds = [1 if predict_1_func(all_preds) == 1 else 0 for all_preds in all_predictions]
+
+    for i in range(len(X_test)):
+        print("Our Data Point")
+        print((X_test[i]))
+        print("Our Pred")
+        print((preds[i]))
+
+
+
+
+
 
 
 def averageModels(models, train_folders, test_folders, change, predict_1_func, eval_data, graph, first_min):
@@ -183,54 +258,16 @@ def averageModels(models, train_folders, test_folders, change, predict_1_func, e
 
 
 
+
+
+
+
 def main():
-    categorical_models = {
-        "AdaBoost": AdaBoostClassifier(n_estimators=50),
-        "Extra Trees": ExtraTreesClassifier(n_estimators=100),
-        "HistGBM": HistGradientBoostingClassifier(max_iter=100),
-        "Bernoulli NB": BernoulliNB(),
-        "XGBoost": XGBClassifier(n_estimators=100),
-        "LightGBM": LGBMClassifier(n_estimators=100),
-        "CatBoost": CatBoostClassifier(iterations=100, verbose=False)
-    }
 
-    regression_models = {
-    "Random Forest": RandomForestRegressor(n_estimators=100),
-    "HistGBM": HistGradientBoostingRegressor(max_iter=100),
-    "XGBoost": XGBRegressor(n_estimators=100),
-    "LightGBM": LGBMRegressor(n_estimators=100),
-    }
 
-    allModels = [
-        [AdaBoostClassifier(n_estimators=50), "AdaBoost", 0],
-        [ExtraTreesClassifier(n_estimators=100), "ExtraTrees", 0],
-        [HistGradientBoostingClassifier(max_iter=100), "HistGradient", 0],
-        [BernoulliNB(), "Bernoulli", 0],
-        [XGBClassifier(n_estimators=100), 'XGB', 0],
-        [LGBMClassifier(n_estimators=100),'LGBM', 0],
-        [CatBoostClassifier(iterations=100, verbose=False) , 'CatBoost', 0],
-        #[RandomForestRegressor(n_estimators=100), 'Random Forest', 1],
-        [HistGradientBoostingRegressor(max_iter=100), "HistGradientBoost", 1],
-        [XGBRegressor(n_estimators=100),"XGB", 1],
-        [LGBMRegressor(n_estimators=100), 'LGBM', 1]
-    ]
+    allModels = ONLYCONT + ONLYLOG
 
-    onlyCont = [
-        [RandomForestRegressor(n_estimators=100), 'Random Forest', 1],
-        [HistGradientBoostingRegressor(max_iter=100), "HistGradientBoost", 1],
-        [XGBRegressor(n_estimators=100),"XGB", 1],
-        [LGBMRegressor(n_estimators=100), 'LGBM', 1]
-    ]
-    
-    onlyLog = [
-        [AdaBoostClassifier(n_estimators=50), "AdaBoost", 0],
-        [ExtraTreesClassifier(n_estimators=100), "ExtraTrees", 0],
-        [HistGradientBoostingClassifier(max_iter=100), "HistGradient", 0],
-        [BernoulliNB(), "Bernoulli", 0],
-        [XGBClassifier(n_estimators=100), 'XGB', 0],
-        [LGBMClassifier(n_estimators=100),'LGBM', 0],
-        [CatBoostClassifier(iterations=100, verbose=False) , 'CatBoost', 0]
-    ]
+
 
     clear_screen()
 
@@ -252,9 +289,9 @@ def main():
     train_folders = nov + dec + january_test
     test_folders = january_train
 
-    #for train in train_folders:
-    #    if train in test_folders:
-    #        print("PANIC TRAINING AND TESTING OVERLAPPING")
+    for train in train_folders:
+        if train in test_folders:
+            print("PANIC TRAINING AND TESTING OVERLAPPING")
 
 
     #print(train_folders)
@@ -264,10 +301,15 @@ def main():
     print('beginning baseline')
     
     splits = [[january_train + dec2, dec1 + nov], [january_train + nov, dec1 + dec2], [nov, dec1], [nov + dec1, dec2], [nov + dec1 + dec2, january_train]]
-    
+    splits.reverse()
     for pair in splits:
         train_folders = pair[0]
         test_folders = pair[1]
-        contAndLogistic(allModels, train_folders, test_folders, 1, mixed_pred_func, False, 1)
+        print(pair)
+        contAndLogistic(allModels, train_folders, test_folders, 1, mixed_pred_func, False, 30)
+        
+    #train_and_test_on_fake_data(allModels, dec, 1, mixed_pred_func, eval_data, first_min)
+    #contAndLogistic(allModels, dec, january_train, 1, mixed_pred_func, False, 1)
+    
 
 main()
