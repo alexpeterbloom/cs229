@@ -63,14 +63,14 @@ def pad_timestamps(df, new_path, desired_rows = 600, step = 60):
     padded_df = pd.DataFrame(new_rows, columns = df.columns)
     return padded_df
 
-def pad_csv_folders(folder_list, desired_rows = 600, step = 60):
+def pad_csv_folders(folder_list, first_30 = False, desired_rows = 600, step = 60):
     for folder in folder_list:
         print(f'Currently running on {folder}')
         if not os.path.isdir(folder):
             print(f"Problem: Skipping {folder} as it is not a directory")
             continue
         
-        new_folder = folder + "_padded"
+        new_folder = folder + "_padded_first30" #change
         os.makedirs(new_folder, exist_ok=True)
         counter = 0
         for fname in os.listdir(folder):
@@ -92,6 +92,8 @@ def pad_csv_folders(folder_list, desired_rows = 600, step = 60):
 
                 df = pad_timestamps(df, new_path, desired_rows=desired_rows, step=step)
 
+                if first_30:
+                    df = df.head(30)
                 df.to_csv(new_path, index=False)
                 counter += 1
                 if counter % 10 == 0:
@@ -122,7 +124,8 @@ def cutOffDf(folder, numRowsToInclude):
             df.to_csv(new_path, index = False)
         
 def paddingMain():
-    folder = ["data/" +  "jan" + str(i) + "_ohlcv" for i in range(27, 30)]
-    pad_csv_folders(folder)
+    numbers = ['07', '08', '09', '10', '11', '12', '13']
+    folder = ["data/_do_not_train_on/" +  "feb" + str(number) + "_ohlcv" for number in numbers]
+    pad_csv_folders(folder, True)
 
 paddingMain()

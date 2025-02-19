@@ -116,7 +116,7 @@ def graph_hist(data):
 
 
 
-def test_dif_start_mins(models, train_folders, test_folders, change, mixed_pred_func, first_mins)
+def test_dif_start_mins(models, train_folders, test_folders, change, mixed_pred_func, first_mins):
     train_csvs, days_of_week_train = gather_all_csv(train_folders)
     test_csvs, days_of_week_test = gather_all_csv(test_folders)
 

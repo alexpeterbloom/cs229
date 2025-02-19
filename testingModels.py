@@ -29,9 +29,8 @@ from lightgbm import LGBMClassifier
 from catboost import CatBoostClassifier
 
 
-VOTES_NEEDED = 4
-
 TEST_VOTES = 3
+VOTES_NEEDED = 3
 
 CATEGORICAL_MODELS  = {
         "AdaBoost": AdaBoostClassifier(n_estimators=50),
@@ -49,6 +48,8 @@ REGRESSION_MODELS = {
     "XGBoost": XGBRegressor(n_estimators=100),
     "LightGBM": LGBMRegressor(n_estimators=100),
     }
+
+THEORY = [[LGBMRegressor(n_estimators=100), 'LGBM', 1]]
 
 ONLYCONT = [
         [RandomForestRegressor(n_estimators=100), 'Random Forest', 1],
@@ -165,11 +166,17 @@ def contAndLogistic(models, train_folders, test_folders, change, mixed_pred_func
             for index, p in enumerate(individual_preds):
                 logistic_predictions[index].append(p)
 
-    logistic_predicted = [1 if logisticVoting(all_preds) == 1 else 0 for all_preds in logistic_predictions]
-    continuous_predicted = [1 if continuousVoting(all_preds) == 1 else 0 for all_preds in continuous_predictions]
 
-    print(f'Logistic predicted {logistic_predicted.count(1)}')
-    print(f'Continuous predicted {continuous_predicted.count(1)}')
+
+    if len(logistic_predictions[0]) > 0:
+        logistic_predicted = [1 if logisticVoting(all_preds) == 1 else 0 for all_preds in logistic_predictions]
+        print(f'Logistic predicted {logistic_predicted.count(1)}')
+
+    if len(continuous_predictions[0]) > 0: #we did have some continuous models
+        continuous_predicted = [1 if continuousVoting(all_preds) == 1 else 0 for all_preds in continuous_predictions]
+        print(f'Continuous predicted {continuous_predicted.count(1)}')
+
+
 
 
     preds= []
@@ -300,13 +307,17 @@ def main():
 
     print('beginning baseline')
     
-    splits = [[january_train + dec2, dec1 + nov], [january_train + nov, dec1 + dec2], [nov, dec1], [nov + dec1, dec2], [nov + dec1 + dec2, january_train]]
-    splits.reverse()
-    for pair in splits:
-        train_folders = pair[0]
-        test_folders = pair[1]
-        print(pair)
-        contAndLogistic(allModels, train_folders, test_folders, 1, mixed_pred_func, False, 30)
+    splits = [[january_train, january_test], [dec2  + january_train, january_test], [dec1 + dec2  + january_train, january_test], [nov + dec1 + dec2 + january_train, january_test]]
+
+    for split in splits:
+        train_folders = split[0]
+        test_folders = split[1]
+        print("Train Data")
+        print(train_folders)
+        print("Test Data")
+        print(test_folders)
+        print()
+        contAndLogistic(allModels, train_folders, test_folders, 1, mixed_pred_func, False, 2)
         
     #train_and_test_on_fake_data(allModels, dec, 1, mixed_pred_func, eval_data, first_min)
     #contAndLogistic(allModels, dec, january_train, 1, mixed_pred_func, False, 1)

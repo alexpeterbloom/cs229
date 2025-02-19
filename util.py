@@ -11,20 +11,24 @@ from sklearn.svm import SVC
 import matplotlib.pyplot as plt
 import math
 from datetime import datetime
+import time
 
 #util: contains utility functions used in many files
 
 
+#def get_day_of_the_week(month, day):
+#    upper_month = month.capitalize()
+#    months_last_year = ['Nov', 'Dec']
+#    if upper_month in months_last_year:
+#        current_year = 2024
+#    else:
+#        current_year = 2025
+#    date_str = f"{upper_month} {day} {current_year}"
+#    date_obj = datetime.strptime(date_str, "%b %d %Y")
+#    return date_obj.weekday()
+
 def get_day_of_the_week(month, day):
-    upper_month = month.capitalize()
-    months_last_year = ['Nov', 'Dec']
-    if upper_month in months_last_year:
-        current_year = 2024
-    else:
-        current_year = 2025
-    date_str = f"{upper_month} {day} {current_year}"
-    date_obj = datetime.strptime(date_str, "%b %d %Y")
-    return date_obj.weekday()
+    return 1
 
 
 
@@ -59,6 +63,44 @@ def continuous_eval(final_open, open_x, change):
 def logistic_eval(final_open, open_x, change):
     label = 0 if final_open <= change * open_x else 1
     return label
+
+def load_only_x_points(csv_files, x):
+    X = []
+    num_processed = 0
+    full_dfs = []
+    for csv_file in csv_files:
+        num_processed += 1
+        if not os.path.isfile(csv_file) or os.path.getsize(csv_file) == 0:
+            print(f'Problem: Failed to Read {csv_file}')
+            continue
+        try:
+            df = pd.read_csv(csv_file)
+            if df.empty:
+                print(f'Problem: Encountered Empty Df in Util')
+                continue
+        except Exception as e:
+            print(f'Problem: Failed To Read Dataframe in Util with error {e}')
+            continue
+
+        features = get_first_x_features(df, -1, False, x = x)
+
+        if features is None or df.shape[0] < x:
+            print("Problem: Not Enough Rows in Util")
+            print()
+            time.sleep(50)
+            continue
+    
+
+        X.append(features)
+
+
+    X = np.array(X)
+
+    print(f"Total CSV files processed in testing Data with no Y: {num_processed}")
+    print(f"Total in dataset: {len(X)}")
+
+    return X
+
 
 def load_dataset(csv_files, change, x, days_of_week, evalution_func, store_full_df = False, include_day = False, include_time = False):
     X, y, pct_changes = [], [], []
@@ -101,6 +143,7 @@ def load_dataset(csv_files, change, x, days_of_week, evalution_func, store_full_
             #print(csv_file)
         if features is None or df.shape[0] <= x:
             print("Problem: Not Enough Rows in Util")
+            print("Problem 1")
             continue
 
         open_x = df.iloc[x, 1]
@@ -235,10 +278,6 @@ def evaluate(preds, y_test, pct_test, continuous = False):
     print(f'Average change conditional on predicting 1: {round(avg_1, 1)}')
 
 
-def print_overlap(df1, df2):
-    overlap = np.array([row for row in df1 if row.tolist() in df2.tolist()])
-    print(f'Overlap length of {len(overlap)}')
-    print(overlap)
 
 
 #useful for both continuous and categorical
@@ -253,7 +292,6 @@ def train_model_and_pred(X_train, y_train, X_test, model):
     if len(np.unique(y_train) ) < 2:
         print("Only one outcome in training data, can't train")
         return
-    print_overlap(X_train, X_test)
 
 
 
@@ -274,7 +312,9 @@ def make_fake_datapoints():
 
 
 
-def gather_all_csv(folder_names):
+
+
+def gather_all_csv(folder_names, include_full_path = False):
     all_csv = []
     all_days = []
     for folder in folder_names:
