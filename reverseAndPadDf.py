@@ -1,14 +1,32 @@
 import os
 import pandas as pd 
 
+
 def reverse_df(df):
     if df.empty:
         print('Problem: Encountered empty dataframe when reversing')
     return df.iloc[::-1].reset_index(drop=True)
 
 
+def last_row_before_time(time_stamps, minutes):
+    first_time_stamp = time_stamps[0]
+    end_of_first_x_min = first_time_stamp + (minutes * 60) - 60 #final timestamp in first_x_min
+    last_time_stamp = time_stamps[-1]
+    if last_time_stamp < end_of_first_x_min:
+        return None
+
+    last_index = -1
+    while time_stamps[last_index+1] <= end_of_first_x_min:
+        last_index += 1
+    if last_index == -1:
+        raise Exception("Problematic Dataframe, No rows exist before end of training")
+    
+    return last_index
+
+
+
 #pad the dataframe so it has 600 rows
-def pad_timestamps(df, new_path, desired_rows = 600, step = 60):
+def pad_timestamps(df, new_path, cut_out_data, desired_rows = 600, step = 60):
     if df.empty:
         print('Problem: Empty Dataframe When Padding')
     new_rows = []
@@ -17,6 +35,24 @@ def pad_timestamps(df, new_path, desired_rows = 600, step = 60):
     last_timestamp = first_row.iloc[0]
     real_idx = 1
     n_original = len(df)
+
+
+
+    if cut_out_data[0]:
+        train_minutes = cut_out_data[1]
+        time_stamps = list(df.iloc[:, 0])
+        idx = last_row_before_time(time_stamps, train_minutes)
+        if idx == None:
+            return None
+
+
+        last_training_row = df.iloc[idx]
+        last_open = last_training_row.iloc[1]
+        if last_open < 1e-5:
+            return None
+
+
+
     while len(new_rows) < desired_rows:
         if real_idx < n_original:
             next_row = df.iloc[real_idx]
@@ -63,14 +99,20 @@ def pad_timestamps(df, new_path, desired_rows = 600, step = 60):
     padded_df = pd.DataFrame(new_rows, columns = df.columns)
     return padded_df
 
-def pad_csv_folders(folder_list, first_30 = False, desired_rows = 600, step = 60):
+def pad_csv_folders(folder_list, first_30 = False, desired_rows = 600, step = 60, cut_out_data = [False, 0]):
     for folder in folder_list:
         print(f'Currently running on {folder}')
         if not os.path.isdir(folder):
             print(f"Problem: Skipping {folder} as it is not a directory")
             continue
         
-        new_folder = folder + "_padded_first30" #change
+        suffix = "_padded"
+        if first_30:
+            suffix += "_first30"
+        if cut_out_data[0]:
+            suffix += "_low_volume_dropped"
+
+        new_folder = folder + suffix
         os.makedirs(new_folder, exist_ok=True)
         counter = 0
         for fname in os.listdir(folder):
@@ -90,7 +132,9 @@ def pad_csv_folders(folder_list, first_30 = False, desired_rows = 600, step = 60
 
                 df = reverse_df(df)
 
-                df = pad_timestamps(df, new_path, desired_rows=desired_rows, step=step)
+                df = pad_timestamps(df, new_path, cut_out_data, desired_rows=desired_rows, step=step)
+                if not isinstance(df, pd.DataFrame):
+                    continue
 
                 if first_30:
                     df = df.head(30)
@@ -125,7 +169,25 @@ def cutOffDf(folder, numRowsToInclude):
         
 def paddingMain():
     numbers = ['07', '08', '09', '10', '11', '12', '13']
-    folder = ["data/_do_not_train_on/" +  "feb" + str(number) + "_ohlcv" for number in numbers]
-    pad_csv_folders(folder, True)
+
+    january_train1 = ["data/jan0" + str(i) + "_ohlcv" for i in range(1, 10)]
+    january_train2 = ["data/jan" + str(i) + "_ohlcv" for i in range(10, 16)]
+    january_train = january_train1 + january_train2
+
+
+    january_test = ["data/jan" + str(i) + "_ohlcv" for i in range(16, 30)]
+    january_test.remove("data/jan18_ohlcv")
+
+
+    dec1 = ["data/dec0" + str(i) + "_ohlcv" for i in range(1, 10)]
+    dec2 = ["data/dec" + str(i) + "_ohlcv" for i in range(10, 32)]
+    dec = dec1 + dec2
+    nov = ["data/nov0" + str(i) + "_ohlcv" for i in range(1, 10)]
+    nov.append("data/nov10_ohlcv")
+
+    folder = january_train + january_test + dec + nov
+
+
+    pad_csv_folders(folder, False, cut_out_data = [True, 30])
 
 paddingMain()

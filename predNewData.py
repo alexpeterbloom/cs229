@@ -1,23 +1,9 @@
 from util import *
 import os
-import numpy as np
-import pandas as pd
-from sklearn.metrics import confusion_matrix
-from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.svm import SVC
-import matplotlib.pyplot as plt
-from sklearn.neural_network import MLPClassifier
+
 from sklearn.ensemble import AdaBoostClassifier, ExtraTreesClassifier, HistGradientBoostingClassifier
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
 from sklearn.naive_bayes import BernoulliNB, MultinomialNB
-from sklearn.linear_model import RidgeClassifier, SGDClassifier
-from sklearn.dummy import DummyClassifier
-from sklearn.linear_model import LinearRegression
-from sklearn.linear_model import LinearRegression
 from sklearn.svm import SVR
 from sklearn.ensemble import RandomForestRegressor, HistGradientBoostingRegressor
 from xgboost import XGBRegressor
@@ -29,7 +15,7 @@ from lightgbm import LGBMClassifier
 from catboost import CatBoostClassifier
 
 #
-TOTAL_VOTES_NEEDED = 2
+TOTAL_VOTES_NEEDED = 4
 
 
 ONLYCONT = [
@@ -83,13 +69,12 @@ def continuousVoting(all_preds):
 
 
 def pred_new_data(models, train_folders, test_folders, change, first_min):
-    train_csvs, days_of_week_train = gather_all_csv(train_folders)
-    test_csvs, days_of_week_test = gather_all_csv(test_folders)
+    train_csvs = gather_all_csv(train_folders)
+    test_csvs = gather_all_csv(test_folders)
 
+    X_train_cont, y_train_cont, pct_train = load_dataset(train_csvs, change, first_min, continuous_eval)
+    X_train_log,  y_train_log,  pct_train  = load_dataset(test_csvs, change, first_min, logistic_eval)
 
-    X_train_cont, y_train_cont, pct_train, datasets = load_dataset(train_csvs, change, first_min, days_of_week_train, continuous_eval, True, False, False)
-    
-    X_train_log, y_train_log, pct_train, datasets = load_dataset(train_csvs, change, first_min, days_of_week_train, logistic_eval, True, False, False)
     X_test = load_only_x_points(test_csvs, first_min)
    
     print(f"Average % change (Train): {average_percent_change(pct_train):.2f}%")
@@ -111,28 +96,7 @@ def pred_new_data(models, train_folders, test_folders, change, first_min):
             for index, p in enumerate(individual_preds):
                 logistic_predictions[index].append(p)
 
-
-    if len(logistic_predictions[0]) > 0:
-        logistic_predicted = [1 if logisticVoting(all_preds) == 1 else 0 for all_preds in logistic_predictions]
-        print(f'Logistic predicted {logistic_predicted.count(1)}')
-    else:
-        print("Error: No Logistic Models Present")
-
-    if len(continuous_predictions[0]) > 0: #we did have some continuous models
-        continuous_predicted = [1 if continuousVoting(all_preds) == 1 else 0 for all_preds in continuous_predictions]
-        print(f'Continuous predicted {continuous_predicted.count(1)}')
-    else:
-        print("Error: No Continuous Models Present")
-
-
-
-
-    preds= []
-    for l, c in zip(logistic_predicted, continuous_predicted):
-        if l and c:
-            preds.append(1)
-        else:
-            preds.append(0)
+    preds = combine_logistic_continuous_preds(logistic_predictions, continuous_predictions, "Both_Confirm")
 
     predicted_csvs = [csv for csv, pred in zip(test_csvs, preds) if pred == 1]
     print("Printing all CSVS we predicted")
@@ -171,7 +135,7 @@ def main():
 
     start_addr = "data/_do_not_train_on/"
     end_addr = "_ohlcv_padded_first30"
-    dates = ['jan30', 'jan31', 'feb01', 'feb02', 'feb03', 'feb04', 'feb05', 'feb06', 'feb07'
+    dates = ['jan30', 'jan31', 'feb01', 'feb02', 'feb03', 'feb04', 'feb05', 'feb06', 'feb07',
              'feb08', 'feb09', 'feb10', 'feb11', 'feb12', 'feb13']
     
     final_test = [start_addr + date + end_addr for date in dates]
@@ -179,14 +143,10 @@ def main():
     train_folders = dec + january_test + january_train
     test_folders = final_test
 
-    print('final train folders', train_folders)
-
-    print()
-    print('final test folders', test_folders)
 
 
 
-    pred_new_data(ALL_MODELS, train_folders, test_folders, 1, 2)
+    pred_new_data(ALL_MODELS, january_train, january_test, 1, 3)
 
 
 

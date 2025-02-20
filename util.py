@@ -2,57 +2,19 @@ import os
 import numpy as np
 import pandas as pd
 from sklearn.metrics import confusion_matrix
-from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.svm import SVC
 import matplotlib.pyplot as plt
-import math
-from datetime import datetime
 import time
 
-#util: contains utility functions used in many files
 
 
-#def get_day_of_the_week(month, day):
-#    upper_month = month.capitalize()
-#    months_last_year = ['Nov', 'Dec']
-#    if upper_month in months_last_year:
-#        current_year = 2024
-#    else:
-#        current_year = 2025
-#    date_str = f"{upper_month} {day} {current_year}"
-#    date_obj = datetime.strptime(date_str, "%b %d %Y")
-#    return date_obj.weekday()
-
-def get_day_of_the_week(month, day):
-    return 1
+VOTES_NEEDED = 4
 
 
 
-#optimize: change which features you're taking
-#optimize: change how many minutes in the beginning you're taking
-def get_first_x_features(df, day_of_week, include_time, x):
+def get_first_x_features(df, x):
     sub_df = df.iloc[:x, 1:6] #taking columns one to five
     flattened = sub_df.values.flatten()
-    if include_time:
-        start_time = 1730400000
-        minutes_in_day = 60 * 24
-        if df.shape[0] < x:
-            print("Problem: There are less than 30 features in data")
-        startTime = (df.iloc[0, 0] - start_time)/60
-        timeOfDay = startTime % minutes_in_day
-        timeInTwoPiRange = (2 * math.pi * timeOfDay)/ 1440
-        sin_time = math.sin(timeInTwoPiRange)
-        cos_time = math.cos(timeInTwoPiRange)
-        flattened = np.append(flattened, [sin_time, cos_time])
-    if day_of_week != -1:
-        flattened = np.append(flattened, day_of_week)
-
     return flattened
-
 
 
 
@@ -64,10 +26,10 @@ def logistic_eval(final_open, open_x, change):
     label = 0 if final_open <= change * open_x else 1
     return label
 
+
 def load_only_x_points(csv_files, x):
     X = []
     num_processed = 0
-    full_dfs = []
     for csv_file in csv_files:
         num_processed += 1
         if not os.path.isfile(csv_file) or os.path.getsize(csv_file) == 0:
@@ -82,7 +44,7 @@ def load_only_x_points(csv_files, x):
             print(f'Problem: Failed To Read Dataframe in Util with error {e}')
             continue
 
-        features = get_first_x_features(df, -1, False, x = x)
+        features = get_first_x_features(df, x)
 
         if features is None or df.shape[0] < x:
             print("Problem: Not Enough Rows in Util")
@@ -92,8 +54,6 @@ def load_only_x_points(csv_files, x):
     
 
         X.append(features)
-
-
     X = np.array(X)
 
     print(f"Total CSV files processed in testing Data with no Y: {num_processed}")
@@ -102,11 +62,12 @@ def load_only_x_points(csv_files, x):
     return X
 
 
-def load_dataset(csv_files, change, x, days_of_week, evalution_func, store_full_df = False, include_day = False, include_time = False):
+
+def load_dataset(csv_files, change, x, evaluation_func, store_full_df = False, silent = False):
     X, y, pct_changes = [], [], []
     num_processed = 0
     full_dfs = []
-    for day, csv_file in zip(days_of_week, csv_files):
+    for csv_file in csv_files:
         num_processed += 1
 
         if not os.path.isfile(csv_file) or os.path.getsize(csv_file) == 0:
@@ -123,24 +84,9 @@ def load_dataset(csv_files, change, x, days_of_week, evalution_func, store_full_
             print(f'Problem: Failed To Read Dataframe in Util with error {e}')
             continue
         
-        if not include_day:
-            day = -1
-        features = get_first_x_features(df, day, include_time, x = x)
+
+        features = get_first_x_features(df, x)
         
-#         if (np.allclose(features, [4.07928183e-05, 1.25656050e-04, 1.20387510e-05, 1.21424630e-05,
-#   5.88205322e+04, 1.21424630e-05, 2.02759699e-05, 9.06843021e-06,
-#   1.21074602e-05, 2.01943234e+04, 1.21074602e-05, 1.56321601e-05,
-#   1.21074602e-05, 1.42079446e-05, 3.57333201e+03, 1.42079446e-05,
-#   2.00347483e-05, 1.40721797e-05, 1.85989413e-05, 2.85243408e+03,
-#   1.85989413e-05, 2.21320674e-05, 1.12410422e-05, 1.25264711e-05,
-#   4.49656988e+03, 1.25264711e-05, 1.41305027e-05, 9.57099761e-06,
-#   9.57099761e-06, 3.64394179e+03, 9.57099761e-06, 3.14449077e-05,
-#   8.49187646e-06, 1.51465422e-05, 3.07122017e+04, 1.51465422e-05,
-#   1.73767651e-05, 1.51465422e-05, 1.61199806e-05, 1.16673560e+03,
-#   1.61199806e-05, 1.61199806e-05, 1.54876866e-05, 1.54876866e-05,
-#   2.42026619e+02, 1.54876866e-05, 1.54876866e-05, 1.21733316e-05,
-#   1.29333018e-05, 9.57641795e+02], atol = 1e-08)):
-            #print(csv_file)
         if features is None or df.shape[0] <= x:
             print("Problem: Not Enough Rows in Util")
             print("Problem 1")
@@ -153,10 +99,9 @@ def load_dataset(csv_files, change, x, days_of_week, evalution_func, store_full_
         #switched to this rather than final close for clarity
         final_open = df.iloc[-1, 1]
 
-        label = evalution_func(final_open, open_x, change)
+        label = evaluation_func(final_open, open_x, change)
 
         pct_change = ((final_open - open_x)/ open_x) * 100
-        #remove
         pct_change = min(pct_change, 500)
 
 
@@ -172,12 +117,17 @@ def load_dataset(csv_files, change, x, days_of_week, evalution_func, store_full_
     y = np.array(y)
     pct_changes = np.array(pct_changes)
 
-    print(f"Total CSV files processed: {num_processed}")
-    print(f"Total in dataset: {len(X)}")
+    if not silent:
+        print(f"Total CSV files processed: {num_processed}")
+        print(f"Total in dataset: {len(X)}")
     if store_full_df:
         return X, y, pct_changes, full_dfs
     
     return X, y, pct_changes
+
+
+
+
 
 def graphTimeSeries(test_dfs, preds, x):
     all_time_series = []
@@ -213,6 +163,94 @@ def graphTimeSeries(test_dfs, preds, x):
 def average_percent_change(pct_changes):
     return float(np.mean(pct_changes))
 
+
+def graph_hist(data):
+    plt.hist(data, bins=5, edgecolor='black')
+    plt.xlabel('Value Range')
+    plt.ylabel('Frequency')
+    plt.title('Histogram Example')
+
+
+
+def logisticVoting(all_preds):
+    ones = all_preds.count(1)
+    if ones >= VOTES_NEEDED:
+        return 1
+    return 0
+
+
+def continuousVoting(all_preds):
+    pred = sum(all_preds)/len(all_preds)
+    return 1 if pred > 30 else 0
+
+
+def combine_logistic_continuous_preds(logistic_predictions, continuous_predictions, voting_method = "Both_Confirm", threshold = 30, logistic_weight = 60):
+    if voting_method == 'Both_Confirm':
+        if len(logistic_predictions[0]) > 0:
+            logistic_predicted = [1 if logisticVoting(all_preds) == 1 else 0 for all_preds in logistic_predictions]
+            print(f'Logistic predicted {logistic_predicted.count(1)}')
+        else:
+            raise ValueError("No Logistic Models: Can't have Logistic and Continuous Vote")
+
+        if len(continuous_predictions[0]) > 0: 
+            continuous_predicted = [1 if continuousVoting(all_preds) == 1 else 0 for all_preds in continuous_predictions]
+            print(f'Continuous predicted {continuous_predicted.count(1)}')
+        else:
+            raise ValueError("No Continuous Models: Can't Have Logistic and Continuous Vote")
+        preds= []
+
+        for l, c in zip(logistic_predicted, continuous_predicted):
+            if l and c:
+                preds.append(1)
+            else:
+                preds.append(0)
+
+    elif voting_method == 'Total_Sum':
+
+        preds = []
+        total_datapoints = len(logistic_predictions)
+        total_pred_each_datapoint = len(logistic_predictions[0]) + len(continuous_predictions[0])
+        for i in range(total_datapoints):
+
+            sum = 0
+            log = logistic_predictions[i]
+            for l in log:
+                if l == 0:
+                    sum -= logistic_weight
+  
+                else:
+                    sum += logistic_weight
+
+
+            cont = continuous_predictions[i]
+            for c in cont:
+                sum += c
+
+
+
+            if sum/total_pred_each_datapoint > threshold:
+                preds.append(1)
+            else:
+                preds.append(0)
+
+    else:
+        raise ValueError("Invalid Voting Method Inputted")
+    
+    return np.array(preds)
+        
+
+def quiet_eval(preds, y_test, pct_test, continuous = False):
+    if continuous:
+        new_y_test = [1 if i > 0 else 0 for i in y_test]
+        new_preds = [1 if i > 0 else 0 for i in preds]
+        preds, y_test = new_preds, new_y_test
+
+
+    pred_1_changes = [p for p, pr in zip(pct_test, preds) if pr == 1]
+    avg_1 = np.mean(pred_1_changes)
+    num_ones_pred = np.sum(preds == 1)
+    return avg_1, num_ones_pred
+    
 
 def evaluate(preds, y_test, pct_test, continuous = False):
     print()
@@ -314,7 +352,7 @@ def make_fake_datapoints():
 
 
 
-def gather_all_csv(folder_names, include_full_path = False):
+def gather_all_csv(folder_names):
     all_csv = []
     all_days = []
     for folder in folder_names:
@@ -322,16 +360,12 @@ def gather_all_csv(folder_names, include_full_path = False):
 
         month = info[1][:3]
         day = info[1][3:5]
-        day_of_week = get_day_of_the_week(month, day)
+
         if os.path.isdir(folder):
             for fname in os.listdir(folder):
                 if fname.endswith(".csv"):
-                    info = fname.split("_")
-                    month = info[0][:3]
-                    day = info[0][3:5]
-                    all_days.append(day_of_week)
                     all_csv.append(os.path.join(folder, fname))
-    return all_csv, all_days
+    return all_csv
 
 def clear_screen():
     for i in range(300):
