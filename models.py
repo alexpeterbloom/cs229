@@ -125,48 +125,17 @@ def main():
     clear_screen()
     
 
-    january_train1 = ["data/jan0" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(1, 10)]
-    january_train2 = ["data/jan" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(10, 16)]
-    january_train = january_train1 + january_train2
+    data = get_folder_names()
 
 
-    january_test = ["data/jan" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(16, 30)]
-    january_test.remove("data/jan18_ohlcv_padded_low_volume_dropped")
+    train_folders = data['nov1'] + data['nov2'] + data['jan1']
+    test_folders = data['jan2']
+
+    first_minutes = 30
 
 
-    dec1 = ["data/dec0" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(1, 10)]
-    dec2 = ["data/dec" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(10, 32)]
-    dec = dec1 + dec2
-    nov = ["data/nov0" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(1, 10)]
-    nov.append("data/nov10_ohlcv_padded_low_volume_dropped")
-
-    train_folders = nov + dec + january_test
-    test_folders = january_train
-
-    for train in train_folders:
-        if train in test_folders:
-            print("PANIC TRAINING AND TESTING OVERLAPPING")
-
-
-
-
-    print('beginning baseline')
-    
-    splits = [[january_train, january_test], [dec2  + january_train, january_test], [dec1 + dec2  + january_train, january_test], [nov + dec1 + dec2 + january_train, january_test]]
-
-    first_minute = 
-    print(f"Running on {first_minute} minutes")
-
-
-    for split in splits:
-        train_folders = split[0]
-        test_folders = split[1]
-        #print("Train Data")
-        #print(train_folders)
-        #print("Test Data")
-        #print(test_folders)
-        print()
-        cont_and_logistic_voting(allModels, train_folders, test_folders, 1, first_minute)
+    confirm_no_overlap(train_folders, test_folders)
+    cont_and_logistic_voting(allModels, train_folders, test_folders, 1, first_minutes)
 
 
 main()

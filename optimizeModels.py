@@ -82,6 +82,7 @@ def grid_search(models, train_test_splits, first_min, change, thresholds, log_we
             tot_change = 0
             tot_count = 0
             for split in train_test_splits:
+                confirm_no_overlap(split[0], split[1])
                 avg_change, count = one_run_cont_and_log(models, split[0], split[1], change, first_min, threshold, log_weight)
                 tot_change += count * avg_change
                 tot_count += count
@@ -100,40 +101,13 @@ def main():
 
     clear_screen()
     
+    data = get_folder_names()
 
-    january_train1 = ["data/jan0" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(1, 10)]
-    january_train2 = ["data/jan" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(10, 16)]
-    january_train = january_train1 + january_train2
-
-
-    january_test = ["data/jan" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(16, 30)]
-    january_test.remove("data/jan18_ohlcv_padded_low_volume_dropped")
-
-
-    dec1 = ["data/dec0" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(1, 10)]
-    dec2 = ["data/dec" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(10, 32)]
-    dec = dec1 + dec2
-    nov = ["data/nov0" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(1, 10)]
-    nov.append("data/nov10_ohlcv_padded_low_volume_dropped")
-
-    train_folders = nov + dec + january_test
-    test_folders = january_train
-
-    for train in train_folders:
-        if train in test_folders:
-            print("PANIC TRAINING AND TESTING OVERLAPPING")
-
-
-
-
-    print('beginning baseline')
     
-    splits = [[january_train, january_test], [dec2  + january_train, january_test], [dec1 + dec2  + january_train, january_test], [nov + dec1 + dec2 + january_train, january_test]]
+    splits = [[data['jan1'], data['jan2']], [data['dec2']  + data['jan1'], data['jan2']], [data['dec1'] + data['dec2']  + data['jan1'], data['jan2']], [data['nov1'] + data['dec1'] + data['dec2'] + data['jan1'], data['jan2']]]
 
     first_minute = 30
     print(f"Running on {first_minute} minutes")
-
-
 
 
     thresholds = [-20, -10, 0, 10, 20, 30, 40, 50, 60]

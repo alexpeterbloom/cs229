@@ -9,6 +9,39 @@ import time
 
 VOTES_NEEDED = 4
 
+def confirm_no_overlap(train_folders, test_folders):
+    for train in train_folders:
+        if train in test_folders:
+            raise Exception("PANIC TRAINING AND TESTING OVERLAPPING")
+
+
+
+def get_folder_names():
+    all_batches = {}
+
+    january_train1 = ["data/jan0" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(1, 10)]
+    january_train2 = ["data/jan" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(10, 16)]
+    january_half_one = january_train1 + january_train2
+    all_batches['jan1'] = january_half_one
+
+
+    january_test = ["data/jan" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(16, 30)]
+    january_test.remove("data/jan18_ohlcv_padded_low_volume_dropped")
+    all_batches['jan2'] = january_test
+
+    dec1 = ["data/dec0" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(1, 10)]
+    dec2 = ["data/dec" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(10, 32)]
+
+    all_batches['dec1'] = dec1
+    all_batches['dec2'] = dec2
+    
+
+    nov = ["data/nov0" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(1, 10)]
+    nov.append("data/nov10_ohlcv_padded_low_volume_dropped")
+    all_batches['nov1'] = nov
+    return all_batches
+
+
 
 
 def get_first_x_features(df, x):

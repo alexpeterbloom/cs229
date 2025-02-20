@@ -116,37 +116,18 @@ def main():
     ALL_MODELS = ONLYCONT + ONLYLOG
 
     
-    january_train1 = ["data/jan0" + str(i) + "_ohlcv_padded" for i in range(1, 10)]
-    january_train2 = ["data/jan" + str(i) + "_ohlcv_padded" for i in range(10, 16)]
-    january_train = january_train1 + january_train2
+    data = get_folder_names()
 
+    train_folders = data['dec1'] + data['dec2'] + data['jan1']
+    test_folders = data['jan2']
+    confirm_no_overlap(train_folders, test_folders)
 
-    january_test = ["data/jan" + str(i) + "_ohlcv_padded" for i in range(16, 30)]
-    january_test.remove("data/jan18_ohlcv_padded")
-
-
-    dec1 = ["data/dec0" + str(i) + "_ohlcv_padded" for i in range(1, 10)]
-    dec2 = ["data/dec" + str(i) + "_ohlcv_padded" for i in range(10, 32)]
-    dec = dec1 + dec2
-    nov = ["data/nov0" + str(i) + "_ohlcv_padded" for i in range(1, 10)]
-    nov.append("data/nov10_ohlcv_padded")
-
-
-
-    start_addr = "data/_do_not_train_on/"
-    end_addr = "_ohlcv_padded_first30"
-    dates = ['jan30', 'jan31', 'feb01', 'feb02', 'feb03', 'feb04', 'feb05', 'feb06', 'feb07',
-             'feb08', 'feb09', 'feb10', 'feb11', 'feb12', 'feb13']
     
-    final_test = [start_addr + date + end_addr for date in dates]
-
-    train_folders = dec + january_test + january_train
-    test_folders = final_test
+    minutes = 30
+    change = 1
 
 
-
-
-    pred_new_data(ALL_MODELS, january_train, january_test, 1, 3)
+    pred_new_data(ALL_MODELS, train_folders, test_folders, change, minutes)
 
 
 
