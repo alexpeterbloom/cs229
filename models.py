@@ -1,5 +1,6 @@
 from util import *
 import matplotlib.pyplot as plt
+from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import AdaBoostClassifier, ExtraTreesClassifier, HistGradientBoostingClassifier
 from sklearn.naive_bayes import BernoulliNB, MultinomialNB
 from sklearn.svm import SVR
@@ -9,6 +10,7 @@ from lightgbm import LGBMRegressor
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 from catboost import CatBoostClassifier
+from sklearn.tree import DecisionTreeClassifier
 
 
 
@@ -29,6 +31,7 @@ ONLYLOG = [
         [XGBClassifier(n_estimators=100), 'XGB', 0],
         [LGBMClassifier(n_estimators=100),'LGBM', 0],
         [CatBoostClassifier(iterations=100, verbose=False) , 'CatBoost', 0]
+
 ]
 
 ALL_MODELS = ONLYCONT + ONLYLOG
@@ -128,13 +131,16 @@ def main():
     data = get_folder_names()
 
 
-    train_folders = data['nov1'] + data['nov2'] + data['jan1']
-    test_folders = data['jan2']
+    train_folders = data['dec1'] + data['dec2'] + data['nov1']
+    test_folders = data['jan2'] 
+
+
 
     first_minutes = 30
 
-
     confirm_no_overlap(train_folders, test_folders)
+
+
     cont_and_logistic_voting(allModels, train_folders, test_folders, 1, first_minutes)
 
 

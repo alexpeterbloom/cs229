@@ -219,6 +219,7 @@ def continuousVoting(all_preds):
 
 def combine_logistic_continuous_preds(logistic_predictions, continuous_predictions, voting_method = "Both_Confirm", threshold = 30, logistic_weight = 60):
     if voting_method == 'Both_Confirm':
+        print('here')
         if len(logistic_predictions[0]) > 0:
             logistic_predicted = [1 if logisticVoting(all_preds) == 1 else 0 for all_preds in logistic_predictions]
             print(f'Logistic predicted {logistic_predicted.count(1)}')

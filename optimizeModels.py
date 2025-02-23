@@ -68,7 +68,7 @@ def one_run_cont_and_log(models, train_folders, test_folders, change, first_min,
                 logistic_predictions[index].append(p)
 
 
-    preds = combine_logistic_continuous_preds(logistic_predictions, continuous_predictions, "Total_Sum", threshold, logistic_weight)
+    preds = combine_logistic_continuous_preds(logistic_predictions, continuous_predictions, "Both_Confirm", threshold, logistic_weight)
 
 
     average_change, count = quiet_eval(preds, y_test, pct_test)
@@ -86,9 +86,8 @@ def grid_search(models, train_test_splits, first_min, change, thresholds, log_we
                 avg_change, count = one_run_cont_and_log(models, split[0], split[1], change, first_min, threshold, log_weight)
                 tot_change += count * avg_change
                 tot_count += count
-                break #change
             error = tot_change/tot_count
-            print(f'Threshold: {threshold}, Log_Weight: {log_weight}, Error: {error}, Count: {tot_count}')
+            print(f'Threshold: {threshold}, Log_Weight: {log_weight}, Pct: {error}, Count: {tot_count}')
 
 
 
