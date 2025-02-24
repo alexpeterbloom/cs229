@@ -9,6 +9,7 @@ import time
 
 VOTES_NEEDED = 4
 
+
 def confirm_no_overlap(train_folders, test_folders):
     for train in train_folders:
         if train in test_folders:
@@ -16,33 +17,32 @@ def confirm_no_overlap(train_folders, test_folders):
 
 
 
-def get_folder_names():
+def get_folder_names(prefix = "data/", suffix = "_ohlcv_padded_low_volume_dropped"):
     all_batches = {}
 
     feb_days = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13']
 
-    feb_data = ['data/feb' + day + "_ohlcv_padded_low_volume_dropped" for day in feb_days]
+    feb_data = [prefix + 'feb' + day + suffix for day in feb_days]
     all_batches['feb1'] = feb_data
 
-    january_train1 = ["data/jan0" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(1, 10)]
-    january_train2 = ["data/jan" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(10, 16)]
+    january_train1 = [prefix + "jan0" + str(i) + suffix for i in range(1, 10)]
+    january_train2 = [prefix + "jan" + str(i) + suffix for i in range(10, 16)]
     january_half_one = january_train1 + january_train2
     all_batches['jan1'] = january_half_one
 
 
-    january_test = ["data/jan" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(16, 32)]
-    january_test.remove("data/jan18_ohlcv_padded_low_volume_dropped")
+    january_test = [prefix + "jan" + str(i) + suffix for i in range(16, 32)]
     all_batches['jan2'] = january_test
 
-    dec1 = ["data/dec0" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(1, 10)]
-    dec2 = ["data/dec" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(10, 32)]
+    dec1 = [prefix + "dec0" + str(i) + suffix for i in range(1, 10)]
+    dec2 = [prefix + "dec" + str(i) + suffix for i in range(10, 32)]
 
     all_batches['dec1'] = dec1
     all_batches['dec2'] = dec2
     
 
-    nov = ["data/nov0" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(1, 10)]
-    nov.append("data/nov10_ohlcv_padded_low_volume_dropped")
+    nov = [prefix + "nov0" + str(i) + suffix for i in range(1, 10)]
+    nov.append(prefix + "nov10" + suffix)
     all_batches['nov1'] = nov
 
     return all_batches
@@ -51,9 +51,14 @@ def get_folder_names():
 
 
 def get_first_x_features(df, x):
-    sub_df = df.iloc[:x, 1:6] #taking columns one to five
+    #sub_df = df.iloc[:x, 1:6] #taking columns one to five
+    col_names = ['price_change']
+    
+    sub_df = df.loc[:x-1, col_names]
     flattened = sub_df.values.flatten()
     return flattened
+
+
 
 
 
@@ -112,6 +117,7 @@ def load_dataset(csv_files, change, x, evaluation_func, store_full_df = False, s
         if not os.path.isfile(csv_file) or os.path.getsize(csv_file) == 0:
             print(f'Problem: Failed to Read {csv_file}')
             continue
+        
         
         try:
             df = pd.read_csv(csv_file)
@@ -385,10 +391,6 @@ def gather_all_csv(folder_names):
     all_csv = []
     all_days = []
     for folder in folder_names:
-        info = folder.split("/")
-
-        month = info[1][:3]
-        day = info[1][3:5]
 
         if os.path.isdir(folder):
             for fname in os.listdir(folder):

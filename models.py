@@ -130,7 +130,7 @@ def main():
     data = get_folder_names()
 
 
-    train_folders = data['dec1'] + data['dec2'] + data['nov1']
+    train_folders = data['dec1'] + data['dec2'] + data['nov1'] + data['jan1']
     test_folders = data['jan2'] 
 
 
