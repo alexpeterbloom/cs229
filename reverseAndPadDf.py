@@ -168,26 +168,16 @@ def cutOffDf(folder, numRowsToInclude):
             df.to_csv(new_path, index = False)
         
 def paddingMain():
-    numbers = ['07', '08', '09', '10', '11', '12', '13']
 
-    january_train1 = ["data/jan0" + str(i) + "_ohlcv" for i in range(1, 10)]
-    january_train2 = ["data/jan" + str(i) + "_ohlcv" for i in range(10, 16)]
-    january_train = january_train1 + january_train2
+    final_january_data = ['data/jan30_ohlcv', 'data/jan31_ohlcv']
 
+    feb_days = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13']
 
-    january_test = ["data/jan" + str(i) + "_ohlcv" for i in range(16, 30)]
-    january_test.remove("data/jan18_ohlcv")
+    feb_data = ['data/feb' + day + "_ohlcv" for day in feb_days]
 
+    data_to_pad = final_january_data + feb_data
+    print(data_to_pad)
 
-    dec1 = ["data/dec0" + str(i) + "_ohlcv" for i in range(1, 10)]
-    dec2 = ["data/dec" + str(i) + "_ohlcv" for i in range(10, 32)]
-    dec = dec1 + dec2
-    nov = ["data/nov0" + str(i) + "_ohlcv" for i in range(1, 10)]
-    nov.append("data/nov10_ohlcv")
-
-    folder = january_train + january_test + dec + nov
-
-
-    pad_csv_folders(folder, False, cut_out_data = [True, 30])
+    pad_csv_folders(data_to_pad, False, cut_out_data = [True, 30])
 
 paddingMain()

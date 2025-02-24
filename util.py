@@ -19,13 +19,18 @@ def confirm_no_overlap(train_folders, test_folders):
 def get_folder_names():
     all_batches = {}
 
+    feb_days = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13']
+
+    feb_data = ['data/feb' + day + "_ohlcv_padded_low_volume_dropped" for day in feb_days]
+    all_batches['feb1'] = feb_data
+
     january_train1 = ["data/jan0" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(1, 10)]
     january_train2 = ["data/jan" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(10, 16)]
     january_half_one = january_train1 + january_train2
     all_batches['jan1'] = january_half_one
 
 
-    january_test = ["data/jan" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(16, 30)]
+    january_test = ["data/jan" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(16, 32)]
     january_test.remove("data/jan18_ohlcv_padded_low_volume_dropped")
     all_batches['jan2'] = january_test
 
@@ -39,6 +44,7 @@ def get_folder_names():
     nov = ["data/nov0" + str(i) + "_ohlcv_padded_low_volume_dropped" for i in range(1, 10)]
     nov.append("data/nov10_ohlcv_padded_low_volume_dropped")
     all_batches['nov1'] = nov
+
     return all_batches
 
 
@@ -366,21 +372,10 @@ def train_model_and_pred(X_train, y_train, X_test, model):
         return
 
 
-
-
-
-
     model.fit(X_train, y_train)
     preds = model.predict(X_test)
     return preds
 
- 
-
-def make_fake_datapoints():
-    dp1 = [9.53537473e-05, 1.37633896e-04, 7.66842373e-05,]
-    dp2 = [1.00152780e-04, 1.61179280e-04, 1.00152780e-04]
-    dp3 = [8.59934543e-05, 8.63070882e-05, 8.56292548e-05]
-    return np.array([dp1, dp2, dp3])
 
 
 

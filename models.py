@@ -31,7 +31,6 @@ ONLYLOG = [
         [XGBClassifier(n_estimators=100), 'XGB', 0],
         [LGBMClassifier(n_estimators=100),'LGBM', 0],
         [CatBoostClassifier(iterations=100, verbose=False) , 'CatBoost', 0]
-
 ]
 
 ALL_MODELS = ONLYCONT + ONLYLOG
