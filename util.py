@@ -4,6 +4,8 @@ import pandas as pd
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 import time
+import datetime
+import random
 
 
 
@@ -50,12 +52,22 @@ def get_folder_names(prefix = "data/", suffix = "_ohlcv_padded_low_volume_droppe
 
 
 
-def get_first_x_features(df, x):
+def get_first_x_features(df, x, feature_names, days_from_begin = None, day_of_week = None):
     #sub_df = df.iloc[:x, 1:6] #taking columns one to five
-    col_names = ['price_change']
-    
-    sub_df = df.loc[:x-1, col_names]
+
+    sub_df = df.loc[:x-1, feature_names]
     flattened = sub_df.values.flatten()
+
+    additional_features = []
+    if days_from_begin is not None:
+        additional_features.append(days_from_begin)
+    if day_of_week is not None:
+        additional_features.append(day_of_week)
+    
+    if additional_features:
+        flattened = np.concatenate((flattened, np.array(additional_features)))
+
+
     return flattened
 
 
@@ -88,7 +100,7 @@ def load_only_x_points(csv_files, x):
             print(f'Problem: Failed To Read Dataframe in Util with error {e}')
             continue
 
-        features = get_first_x_features(df, x)
+        features = get_first_x_features(df, x, feature_names=None) #CHANGE
 
         if features is None or df.shape[0] < x:
             print("Problem: Not Enough Rows in Util")
@@ -107,11 +119,12 @@ def load_only_x_points(csv_files, x):
 
 
 
-def load_dataset(csv_files, change, x, evaluation_func, store_full_df = False, silent = False):
+def load_dataset(csv_files, change, x, evaluation_func, feature_names, store_full_df = False, silent = False, 
+                days_of_week = None, days_from_begin = None):
     X, y, pct_changes = [], [], []
     num_processed = 0
     full_dfs = []
-    for csv_file in csv_files:
+    for i, csv_file in enumerate(csv_files):
         num_processed += 1
 
         if not os.path.isfile(csv_file) or os.path.getsize(csv_file) == 0:
@@ -129,8 +142,14 @@ def load_dataset(csv_files, change, x, evaluation_func, store_full_df = False, s
             print(f'Problem: Failed To Read Dataframe in Util with error {e}')
             continue
         
+        days_dist = None
+        if days_from_begin != None:
+            days_dist = days_from_begin[i]
+        day_of_week = None
+        if days_of_week != None:
+            day_of_week = days_of_week[i]
 
-        features = get_first_x_features(df, x)
+        features = get_first_x_features(df, x, feature_names, days_dist, day_of_week)
         
         if features is None or df.shape[0] <= x:
             print("Problem: Not Enough Rows in Util")
@@ -383,15 +402,81 @@ def train_model_and_pred(X_train, y_train, X_test, model):
     return preds
 
 
+def gather_all_date_info(folder_names):
+    month_map = {
+        'jan': 1,
+        'feb': 2,
+        'mar': 3,
+        'apr': 4,
+        'may': 5,
+        'jun': 6,
+        'jul': 7,
+        'aug': 8,
+        'sep': 9,
+        'oct': 10,
+        'nov': 11,
+        'dec': 12
+    }
+
+    day_map = {
+        'Monday': 1,
+        'Tuesday': 2,
+        'Wednesday': 3,
+        'Thursday': 4,
+        'Friday': 5,
+        'Saturday': 6,
+        'Sunday': 7
+    }
+
+    days_of_week, dif_from_begin_list = [], []
+    for folder in folder_names:
+        info = folder.split("/")[1]
+        date = info.split("_")[0]
+        month = date[:3]
+        day = int(date[3:])
+        year = 2025
+        if month == 'nov' or month == 'dec':
+            year = 2024
+        
+        month = month_map[month]
+        input_date = datetime.date(int(year), int(month), int(day))
+        
+        target_date = datetime.date(2024, 11, 1)
+        
+        day_of_week = input_date.strftime("%A")
+        day_of_week = day_map[day_of_week]
+        days_since_beginning = (input_date - target_date).days
+        days_of_week.append(day_of_week)
+        dif_from_begin_list.append(days_since_beginning)
+    return days_of_week, dif_from_begin_list
+        
+
+def randomize_with_date(train_csvs, val_csvs, days_of_week_train, dif_from_begin_train, days_of_week_val, dif_from_begin_val):
+    train_data = list(zip(train_csvs, days_of_week_train, dif_from_begin_train))
+    val_data = list(zip(val_csvs, days_of_week_val, dif_from_begin_val))
+    combined_data = train_data + val_data
+
+    random.shuffle(combined_data)
+    train_data = combined_data[:20000]
+    val_data = combined_data[20000:]
 
 
+    train_csvs, days_of_week_train, dif_from_begin_train = zip(*train_data)
+    train_csvs = list(train_csvs)
+    days_of_week_train = list(days_of_week_train)
+    dif_from_begin_train = list(dif_from_begin_train)
 
+
+    val_csvs, days_of_week_val, dif_from_begin_val = zip(*val_data)
+    val_csvs = list(val_csvs)
+    days_of_week_val = list(days_of_week_val)
+    dif_from_begin_val = list(dif_from_begin_val)
+    return train_csvs, val_csvs, days_of_week_train, dif_from_begin_train, days_of_week_val, dif_from_begin_val
 
 def gather_all_csv(folder_names):
     all_csv = []
     all_days = []
     for folder in folder_names:
-
         if os.path.isdir(folder):
             for fname in os.listdir(folder):
                 if fname.endswith(".csv"):

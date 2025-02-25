@@ -12,7 +12,9 @@ def add_new_individual_df(df):
         print("Error: There are zeros in closing prices")
 
     df['price_change'] = (df['close'] - df['open'])/(df['open'])
-    df['vol_change'] = ((df['usd_vol'] - df['usd_vol'].shift(1)) / df['usd_vol'].shift(1)).fillna(0)
+    df['vol_change'] = (
+    (df['usd_vol'] - df['usd_vol'].shift(1)) / df['usd_vol'].shift(1)
+).replace([np.inf, -np.inf], 0).fillna(0)
 
 
     df['norm_open'] = df['open']/(df['open'].iloc[0])
@@ -249,5 +251,7 @@ def paddingMain():
 
 
 
-add_new_features(old_prefix = "data/", old_suffix = "_ohlcv_padded_low_volume_dropped",
-                  new_prefix = "data/" , new_suffix = "_padded_extra_features")
+#add_new_features(old_prefix = "data/", old_suffix = "_ohlcv_padded_low_volume_dropped",
+#                  new_prefix = "data/" , new_suffix = "_padded_extra_features")
+
+delete_old_folders(prefix_name = "data/", suffix_name = "_ohlcv_padded_low_volume_dropped")

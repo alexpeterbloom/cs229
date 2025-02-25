@@ -11,6 +11,7 @@ from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 from catboost import CatBoostClassifier
 from sklearn.tree import DecisionTreeClassifier
+import random
 
 
 
@@ -71,14 +72,20 @@ def test_individual_models(models, train_folders, test_folders, change, eval_dat
 
 
 
-def cont_and_logistic_voting(models, train_folders, test_folders, change, first_min):
+def cont_and_logistic_voting(models, train_folders, test_folders, change, first_min, feature_names):
     train_csvs = gather_all_csv(train_folders)
     test_csvs = gather_all_csv(test_folders)
 
-    X_train_cont, y_train_cont, pct_train = load_dataset(train_csvs, change, first_min, continuous_eval)
+    all_csvs = train_csvs + test_csvs
+    random.shuffle(all_csvs)
 
-    X_train_log, y_train_log, pct_train = load_dataset(train_csvs, change, first_min, logistic_eval)
-    X_test,  y_test,  pct_test = load_dataset(test_csvs, change, first_min, logistic_eval)   
+    train_csvs = all_csvs[:20000]
+    test_csvs = all_csvs[20000:]
+
+    X_train_cont, y_train_cont, pct_train = load_dataset(train_csvs, change, first_min, continuous_eval, feature_names)
+
+    X_train_log, y_train_log, pct_train = load_dataset(train_csvs, change, first_min, logistic_eval, feature_names)
+    X_test,  y_test,  pct_test = load_dataset(test_csvs, change, first_min, logistic_eval, feature_names)   
    
     print(f"Average % change (Train): {average_percent_change(pct_train):.2f}%")
     print(f"Average % change (Test) : {average_percent_change(pct_test):.2f}%\n")
@@ -127,11 +134,11 @@ def main():
     clear_screen()
     
 
-    data = get_folder_names()
+    data = get_folder_names(suffix = "_padded_extra_features")
 
 
     train_folders = data['dec1'] + data['dec2'] + data['nov1'] + data['jan1']
-    test_folders = data['jan2'] 
+    test_folders = data['jan2'] + data['feb1']
 
 
 
@@ -139,8 +146,8 @@ def main():
 
     confirm_no_overlap(train_folders, test_folders)
 
+    feature_names = ['norm_open','volume','usd_vol','vol_change']
+    cont_and_logistic_voting(allModels, train_folders, test_folders, 1, first_minutes, feature_names)
 
-    cont_and_logistic_voting(allModels, train_folders, test_folders, 1, first_minutes)
-
-
+    
 main()
