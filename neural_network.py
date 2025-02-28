@@ -10,7 +10,7 @@ import numpy as np
 
 #what fraction of original value must it maintain to be counted as a 1
 CHANGE_NEEDED = 1
-FIRST_N_MINUTES = 30
+FIRST_N_MINUTES = 10
 
 
 class Data(Dataset):
@@ -30,13 +30,12 @@ class DenseTwoLayerNetwork(nn.Module): #inheriting from PyTorch nn Module
         super(DenseTwoLayerNetwork, self).__init__()
         self.fully_connected_1 = nn.Linear(input_size, hidden_size)
         self.relu = nn.ReLU()
-        self.sigmoid = nn.Sigmoid()
         self.fully_connected_2 = nn.Linear(hidden_size, 1)
     
     def forward(self, x):
         hidden_layer = self.relu(self.fully_connected_1(x))
-        preds = self.sigmoid(self.fully_connected_2(hidden_layer))
-        return preds
+        logits = self.fully_connected_2(hidden_layer)
+        return logits
     
 
 def get_data_loaders(train_months, val_months, feature_names, randomized = False, silent = False, include_date = False):
@@ -107,7 +106,7 @@ def train_test_accuracy(model, train_data_loader, val_data_loader, epoch, silent
     with torch.no_grad(): #saves computation time
         for train_X, train_y in train_data_loader:
             predictions = model(train_X)
-            binary_pred = (predictions > 0.5).squeeze(1)
+            binary_pred = (predictions > 0).squeeze(1)
             train_total += train_y.size(0) #number of datapoints
             train_correct += (binary_pred == train_y.byte()).sum().item()
             ones_pred_train += binary_pred.sum().item() 
@@ -129,7 +128,7 @@ def train_test_accuracy(model, train_data_loader, val_data_loader, epoch, silent
     with torch.no_grad():
         for val_X, val_y in val_data_loader:
             predictions = model(val_X)
-            binary_pred = (predictions > 0.5).squeeze(1)
+            binary_pred = (predictions > 0).squeeze(1)
             val_total += val_y.size(0) 
             val_correct += (binary_pred == val_y.byte()).sum().item()
             ones_pred_val += binary_pred.sum().item()
@@ -159,13 +158,14 @@ def graph_train_valid_error(train_accuracy, valid_accuracy, feature_names):
 
 
 
-def train_model(train_months, val_months, feature_names, num_epochs = 10, silent = False, randomized = False, include_date = False):
+def train_model(train_months, val_months, feature_names, num_epochs = 10, silent = False, randomized = False, include_date = False, one_weight = 1):
     feature_size = FIRST_N_MINUTES * len(feature_names)
     if include_date:
         feature_size += 2
 
     model = DenseTwoLayerNetwork(input_size = feature_size)
-    loss_function = nn.BCELoss()
+    pos_weight = torch.tensor([one_weight])
+    loss_function = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     #common optimizer that changes learning rate on each individual parameter
     optimizer = torch.optim.Adam(model.parameters(), lr=0.00001) #0.001
 
@@ -224,7 +224,7 @@ def main():
 
     #features = ['open','high','low','close','volume','usd_vol','price_change','vol_change','norm_open','mov_in_min']
 
-    feature_names = ['volume', 'vol_change', 'norm_open', 'mov_in_min']
+    feature_names = ['open']
     print(f'Running for {feature_names}')
     
 
@@ -237,7 +237,9 @@ def main():
 
     #grid_search(train, val, feature_combos, num_epochs= 200, times_run = 5)
 
-    train_model(train, val, feature_names, num_epochs=200, randomized=True, include_date=False)
+    weight = 8
+    print(weight)
+    train_model(train, val, feature_names, num_epochs=200, randomized=True, include_date=False, one_weight = weight)
 
 
 main()

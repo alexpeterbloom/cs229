@@ -76,11 +76,6 @@ def cont_and_logistic_voting(models, train_folders, test_folders, change, first_
     train_csvs = gather_all_csv(train_folders)
     test_csvs = gather_all_csv(test_folders)
 
-    all_csvs = train_csvs + test_csvs
-    random.shuffle(all_csvs)
-
-    train_csvs = all_csvs[:20000]
-    test_csvs = all_csvs[20000:]
 
     X_train_cont, y_train_cont, pct_train = load_dataset(train_csvs, change, first_min, continuous_eval, feature_names)
 
@@ -142,11 +137,11 @@ def main():
 
 
 
-    first_minutes = 30
+    first_minutes = 10
 
     confirm_no_overlap(train_folders, test_folders)
 
-    feature_names = ['norm_open','volume','usd_vol','vol_change']
+    feature_names = ['open','high','low','close','volume']
     cont_and_logistic_voting(allModels, train_folders, test_folders, 1, first_minutes, feature_names)
 
     
