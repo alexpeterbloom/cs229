@@ -1,5 +1,7 @@
 Use: source venv/bin/activate && export PATH=$(pwd)/venv/bin:$PATH
 
+./venv/bin/python neural_network.py 
+
 Thoughts:
 
 Time series problems
