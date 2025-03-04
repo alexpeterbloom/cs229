@@ -254,4 +254,4 @@ def paddingMain():
 #add_new_features(old_prefix = "data/", old_suffix = "_ohlcv_padded_low_volume_dropped",
 #                  new_prefix = "data/" , new_suffix = "_padded_extra_features")
 
-delete_old_folders(prefix_name = "data/", suffix_name = "_ohlcv_padded_low_volume_dropped")
+delete_old_folders(prefix_name = "data/", suffix_name = "_padded_extra_features")
