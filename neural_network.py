@@ -121,8 +121,8 @@ def grid_search(train_months, val_months, feature_combos, num_epochs, times_run)
 
     
 def main():
-    train = ['jan2', 'jan1', 'dec1', 'dec2', 'nov1']
-    val = ['feb1']
+    train = [ 'sep1', 'sep2', 'oct1', 'oct2', 'nov1', 'nov2', 'dec1', 'dec2']
+    val = ['jan1', 'jan2', 'feb1', 'feb2']
 
     #features = ['open','high','low','close','volume','usd_vol','price_change','vol_change','norm_open','mov_in_min']
 

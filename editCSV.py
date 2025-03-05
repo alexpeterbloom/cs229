@@ -2,6 +2,7 @@ import os
 import pandas as pd 
 from util import *
 import shutil
+import time
 
 
 
@@ -24,7 +25,7 @@ def add_new_individual_df(df):
 
 def add_new_features(old_prefix, old_suffix, new_prefix, new_suffix):
     folders_dict = get_folder_names(prefix = old_prefix, suffix = old_suffix)
-    periods_of_time = ['nov1', 'dec1', 'dec2', 'jan1', 'jan2', 'feb1']
+    periods_of_time = ['sep1', 'sep2', 'oct1', 'oct2', 'nov1', 'nov2', 'dec1', 'dec2', 'jan1', 'jan2', 'feb1', 'feb2']
     folder_list = []
     for month in periods_of_time:
         folder_list += folders_dict[month]
@@ -94,8 +95,12 @@ def last_row_before_time(time_stamps, minutes):
         return None
 
     last_index = -1
-    while time_stamps[last_index+1] <= end_of_first_x_min:
-        last_index += 1
+    try:
+        while time_stamps[last_index+1] <= end_of_first_x_min:
+            last_index += 1
+    except:
+        print("ERROR")
+        return None
     if last_index == -1:
         raise Exception("Problematic Dataframe, No rows exist before end of training")
     
@@ -245,13 +250,16 @@ def cutOffDf(folder, numRowsToInclude):
         
 
 
+
+
 def paddingMain():
-    data_to_pad = ['data/jan18_ohlcv']
-    pad_csv_folders(data_to_pad, False, cut_out_data = [True, 30])
+    all_months = ['sep1', 'sep2', 'oct1', 'oct2', 'nov1', 'nov2', 'dec1', 'dec2', 'jan1', 'jan2', 'feb1', 'feb2']
+    data_to_pad = []
+    all_folder_names = get_folder_names(suffix = "_ohlcv")
+    for month in all_months:
+        data_to_pad += all_folder_names[month]
+    pad_csv_folders(data_to_pad, False, cut_out_data = [True, 60])
 
 
 
-#add_new_features(old_prefix = "data/", old_suffix = "_ohlcv_padded_low_volume_dropped",
-#                  new_prefix = "data/" , new_suffix = "_padded_extra_features")
-
-delete_old_folders(prefix_name = "data/", suffix_name = "_padded_extra_features")
+add_new_features(old_prefix = "data/", old_suffix = "_ohlcv_padded_low_volume_dropped", new_prefix= "data/", new_suffix = "_extra_features_60")

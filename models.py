@@ -129,15 +129,22 @@ def main():
     clear_screen()
     
 
-    data = get_folder_names(suffix = "_padded_extra_features")
-
-
-    train_folders = data['dec1'] + data['dec2'] + data['nov1'] + data['jan1']
-    test_folders = data['jan2'] + data['feb1']
+    data = get_folder_names(suffix = "_extra_features")
 
 
 
-    first_minutes = 10
+    train = [ 'sep1', 'sep2', 'oct1', 'oct2', 'nov1', 'nov2', 'dec1', 'dec2']
+    val = ['jan1', 'jan2', 'feb1', 'feb2']
+    train_folders = []
+    test_folders = []
+    for t in train:
+        train_folders += data[t]
+    for v in val:
+        test_folders += data[v]
+
+ 
+
+    first_minutes = 30
 
     confirm_no_overlap(train_folders, test_folders)
 

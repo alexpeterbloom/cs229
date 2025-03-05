@@ -15,8 +15,48 @@ FIRST_N_MINUTES = 30
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #using m2 gpu
 
+def print_ones_in_val(model, val_data_loader):
+    model.eval()
+    print("Printing all datapoints we predicted 1 for")
+    total_return = 0
+    total_capped_return = 0
+    one_count = 0
+    with torch.no_grad():
+        for batch_x, _, batch_file_names in val_data_loader:
+            batch_x = batch_x.to(device)
+            outputs = model(batch_x)
 
-def train_test_accuracy(model, train_data_loader, val_data_loader, epoch, silent = False):
+            predictions = torch.sigmoid(outputs)
+            predictions = (predictions > 0.5).int().cpu().numpy().flatten() #cpu technically not necessary
+
+            for i, pred in enumerate(predictions):
+                if pred == 1:
+                    print(f'Predicted 1 for file: {batch_file_names[i]}')
+                    change, capped_change = get_percent_return(batch_file_names[i])
+                    one_count += 1
+                    total_return += change
+                    total_capped_return += capped_change
+    print(f"Average capped change of {total_capped_return/one_count}")
+    print(f"Average change of {total_return/one_count}")
+        
+
+
+def get_percent_return(csv_name):
+    df = pd.read_csv(csv_name)
+
+    open_x = df.iloc[FIRST_N_MINUTES, 1]
+
+    #switched to this rather than final close for clarity
+    final_open = df.iloc[-1, 1]
+
+    pct_change = ((final_open - open_x)/ open_x) * 100
+    capped_pct_change = min(pct_change, 500)
+    if pct_change > 1000:
+        print(csv_name, 'big')
+    return pct_change, capped_pct_change
+
+
+def train_test_accuracy(model, train_data_loader, val_data_loader, epoch, silent = False, csv_names = True):
     model.eval() #put it in evaluation mode
 
     ones_pred_train, zeros_pred_train = 0, 0
@@ -46,7 +86,7 @@ def train_test_accuracy(model, train_data_loader, val_data_loader, epoch, silent
     val_total, val_correct = 0, 0
     true_positive_val = 0
     with torch.no_grad():
-        for val_X, val_y in val_data_loader:
+        for val_X, val_y, _ in val_data_loader:
             val_X, val_y = val_X.to(device), val_y.to(device)
             predictions = model(val_X)
             binary_pred = (predictions > 0).squeeze(1)
@@ -82,7 +122,7 @@ def graph_train_valid_error(train_accuracy, valid_accuracy, feature_names):
 def get_deep_learning_data(train_months, val_months, feature_names, randomized = False, silent = False, include_date = False):
     #import training here
 
-    folder_names_dict = get_folder_names(suffix = "_padded_extra_features")
+    folder_names_dict = get_folder_names(suffix = "_extra_features_60")
 
 
     train_folders = []
@@ -96,6 +136,8 @@ def get_deep_learning_data(train_months, val_months, feature_names, randomized =
     train_csvs = gather_all_csv(train_folders)
     val_csvs = gather_all_csv(val_folders)
 
+
+
     dif_from_begin_train, dif_from_begin_val, days_of_week_train, days_of_week_val = None, None, None, None
     if include_date:
         days_of_week_train, dif_from_begin_train = gather_all_date_info(train_csvs)
@@ -103,7 +145,6 @@ def get_deep_learning_data(train_months, val_months, feature_names, randomized =
 
 
     if randomized:
-        print('here')
         if include_date:
             train_csvs, val_csvs, days_of_week_train, dif_from_begin_train, days_of_week_val, dif_from_begin_val = \
             randomize_with_date(train_csvs, val_csvs, days_of_week_train, dif_from_begin_train, days_of_week_val, dif_from_begin_val)
@@ -129,9 +170,10 @@ def get_deep_learning_data(train_months, val_months, feature_names, randomized =
     if not silent:
         print(f"Percentage of ones in y_train: {train_percentage:.2f}%")
         print(f"Percentage of ones in y_val: {val_percentage:.2f}%")
+        print(f'Average change of train: {sum(pct_train)/len(pct_train)}')
+        print(f'Average change of test: {sum(pct_val)/len(pct_val)}')
 
-
-    return X_train, y_train, X_val, y_val
+    return X_train, y_train, X_val, y_val, val_csvs
 
 
 
@@ -147,30 +189,52 @@ def confirm_no_overlap(train_folders, test_folders):
 def get_folder_names(prefix = "data/", suffix = "_ohlcv_padded_low_volume_dropped"):
     all_batches = {}
 
-    feb_days = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13']
-
-    feb_data = [prefix + 'feb' + day + suffix for day in feb_days]
-    all_batches['feb1'] = feb_data
-
-    january_train1 = [prefix + "jan0" + str(i) + suffix for i in range(1, 10)]
-    january_train2 = [prefix + "jan" + str(i) + suffix for i in range(10, 16)]
-    january_half_one = january_train1 + january_train2
-    all_batches['jan1'] = january_half_one
+    sep_days_1 = [f"{i:02d}" for i in range(1, 16)]
+    sep_days_2 = [f"{i:02d}" for i in range(16, 31)]
+    sep_data_1 = [prefix + 'sep' + day + suffix for day in sep_days_1]
+    sep_data_2 = [prefix + 'sep' + day + suffix for day in sep_days_2]
+    all_batches['sep1'] = sep_data_1
+    all_batches['sep2'] = sep_data_2
 
 
-    january_test = [prefix + "jan" + str(i) + suffix for i in range(16, 32)]
-    all_batches['jan2'] = january_test
+    oct_days_1 = [f"{i:02d}" for i in range(1, 16)]
+    oct_days_2 = [f"{i:02d}" for i in range(16, 32)]
+    oct_data_1 = [prefix + 'oct' + day + suffix for day in oct_days_1]
+    oct_data_2 = [prefix + 'oct' + day + suffix for day in oct_days_2]
+    all_batches['oct1'] = oct_data_1
+    all_batches['oct2'] = oct_data_2
 
-    dec1 = [prefix + "dec0" + str(i) + suffix for i in range(1, 10)]
-    dec2 = [prefix + "dec" + str(i) + suffix for i in range(10, 32)]
 
-    all_batches['dec1'] = dec1
-    all_batches['dec2'] = dec2
-    
+    nov_days_1 = [f"{i:02d}" for i in range(1, 16)]
+    nov_days_2 = [f"{i:02d}" for i in range(16, 31)]
+    nov_data_1 = [prefix + 'nov' + day + suffix for day in nov_days_1]
+    nov_data_2 = [prefix + 'nov' + day + suffix for day in nov_days_2]
+    all_batches['nov1'] = nov_data_1
+    all_batches['nov2'] = nov_data_2
 
-    nov = [prefix + "nov0" + str(i) + suffix for i in range(1, 10)]
-    nov.append(prefix + "nov10" + suffix)
-    all_batches['nov1'] = nov
+
+    dec_days_1 = [f"{i:02d}" for i in range(1, 16)]
+    dec_days_2 = [f"{i:02d}" for i in range(16, 32)]
+    dec_data_1 = [prefix + 'dec' + day + suffix for day in dec_days_1]
+    dec_data_2 = [prefix + 'dec' + day + suffix for day in dec_days_2]
+    all_batches['dec1'] = dec_data_1
+    all_batches['dec2'] = dec_data_2
+
+
+    jan_days_1 = [f"{i:02d}" for i in range(1, 16)]
+    jan_days_2 = [f"{i:02d}" for i in range(16, 32)]
+    jan_data_1 = [prefix + 'jan' + day + suffix for day in jan_days_1]
+    jan_data_2 = [prefix + 'jan' + day + suffix for day in jan_days_2]
+    all_batches['jan1'] = jan_data_1
+    all_batches['jan2'] = jan_data_2
+
+
+    feb_days_1 = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13']
+    feb_days_2 = ['14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28']
+    feb_data_1 = [prefix + 'feb' + day + suffix for day in feb_days_1]
+    feb_data_2 = [prefix + 'feb' + day + suffix for day in feb_days_2]
+    all_batches['feb1'] = feb_data_1
+    all_batches['feb2'] = feb_data_2
 
     return all_batches
 
@@ -211,6 +275,7 @@ def logistic_eval(final_open, open_x, change):
 
 def load_dataset(csv_files, change, x, evaluation_func, feature_names, store_full_df = False, silent = False, 
                 days_of_week = None, days_from_begin = None):
+                
     X, y, pct_changes = [], [], []
     num_processed = 0
     full_dfs = []
@@ -340,7 +405,6 @@ def continuousVoting(all_preds):
 
 def combine_logistic_continuous_preds(logistic_predictions, continuous_predictions, voting_method = "Both_Confirm", threshold = 30, logistic_weight = 60):
     if voting_method == 'Both_Confirm':
-        print('here')
         if len(logistic_predictions[0]) > 0:
             logistic_predicted = [1 if logisticVoting(all_preds) == 1 else 0 for all_preds in logistic_predictions]
             print(f'Logistic predicted {logistic_predicted.count(1)}')
