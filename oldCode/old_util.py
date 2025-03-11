@@ -55,6 +55,59 @@ def get_first_x_features(df, day_of_week, include_time, x):
 
 
 
+def get_folder_names(prefix = "data/", suffix = "_ohlcv_padded_low_volume_dropped"):
+    all_batches = {}
+
+    sep_days_1 = [f"{i:02d}" for i in range(1, 16)]
+    sep_days_2 = [f"{i:02d}" for i in range(16, 31)]
+    sep_data_1 = [prefix + 'sep' + day + suffix for day in sep_days_1]
+    sep_data_2 = [prefix + 'sep' + day + suffix for day in sep_days_2]
+    all_batches['sep1'] = sep_data_1
+    all_batches['sep2'] = sep_data_2
+
+
+    oct_days_1 = [f"{i:02d}" for i in range(1, 16)]
+    oct_days_2 = [f"{i:02d}" for i in range(16, 32)]
+    oct_data_1 = [prefix + 'oct' + day + suffix for day in oct_days_1]
+    oct_data_2 = [prefix + 'oct' + day + suffix for day in oct_days_2]
+    all_batches['oct1'] = oct_data_1
+    all_batches['oct2'] = oct_data_2
+
+
+    nov_days_1 = [f"{i:02d}" for i in range(1, 16)]
+    nov_days_2 = [f"{i:02d}" for i in range(16, 31)]
+    nov_data_1 = [prefix + 'nov' + day + suffix for day in nov_days_1]
+    nov_data_2 = [prefix + 'nov' + day + suffix for day in nov_days_2]
+    all_batches['nov1'] = nov_data_1
+    all_batches['nov2'] = nov_data_2
+
+
+    dec_days_1 = [f"{i:02d}" for i in range(1, 16)]
+    dec_days_2 = [f"{i:02d}" for i in range(16, 32)]
+    dec_data_1 = [prefix + 'dec' + day + suffix for day in dec_days_1]
+    dec_data_2 = [prefix + 'dec' + day + suffix for day in dec_days_2]
+    all_batches['dec1'] = dec_data_1
+    all_batches['dec2'] = dec_data_2
+
+
+    jan_days_1 = [f"{i:02d}" for i in range(1, 16)]
+    jan_days_2 = [f"{i:02d}" for i in range(16, 32)]
+    jan_data_1 = [prefix + 'jan' + day + suffix for day in jan_days_1]
+    jan_data_2 = [prefix + 'jan' + day + suffix for day in jan_days_2]
+    all_batches['jan1'] = jan_data_1
+    all_batches['jan2'] = jan_data_2
+
+
+    feb_days_1 = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13']
+    feb_days_2 = ['14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28']
+    feb_data_1 = [prefix + 'feb' + day + suffix for day in feb_days_1]
+    feb_data_2 = [prefix + 'feb' + day + suffix for day in feb_days_2]
+    all_batches['feb1'] = feb_data_1
+    all_batches['feb2'] = feb_data_2
+
+    return all_batches
+
+
 
 def continuous_eval(final_open, open_x, change):
     return ((final_open - open_x)/ open_x) * 100

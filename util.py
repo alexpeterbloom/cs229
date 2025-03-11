@@ -8,12 +8,22 @@ import datetime
 import random
 from torch.utils.data import Dataset, DataLoader
 import torch
+import json
 
 VOTES_NEEDED = 4
 CHANGE_NEEDED = 1
 FIRST_N_MINUTES = 30
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #using m2 gpu
+
+
+def read_our_json_file(file_name):
+    with open(file_name, 'r') as f:
+        json_data = json.load(f)
+
+    df = pd.DataFrame(json_data["ohlcv_data"])
+    return df, json_data
+
 
 def print_ones_in_val(model, val_data_loader):
     model.eval()
@@ -22,9 +32,11 @@ def print_ones_in_val(model, val_data_loader):
     total_capped_return = 0
     one_count = 0
     with torch.no_grad():
-        for batch_x, _, batch_file_names in val_data_loader:
-            batch_x = batch_x.to(device)
-            outputs = model(batch_x)
+        for batch_x_mov, stat_x_mov, _, batch_file_names in val_data_loader:
+            batch_x_mov = batch_x_mov.to(device)
+            if stat_x_mov is not None:
+                stat_x_mov = stat_x_mov.to(device)
+            outputs = model(batch_x_mov, static_x = stat_x_mov)
 
             predictions = torch.sigmoid(outputs)
             predictions = (predictions > 0.5).int().cpu().numpy().flatten() #cpu technically not necessary
@@ -41,13 +53,16 @@ def print_ones_in_val(model, val_data_loader):
         
 
 
-def get_percent_return(csv_name):
-    df = pd.read_csv(csv_name)
+    
 
-    open_x = df.iloc[FIRST_N_MINUTES, 1]
+
+def get_percent_return(csv_name):
+    movement_df, json_data = read_our_json_file(csv_name)
+
+    open_x = movement_df.iloc[FIRST_N_MINUTES, 1]
 
     #switched to this rather than final close for clarity
-    final_open = df.iloc[-1, 1]
+    final_open = movement_df.iloc[-1, 1]
 
     pct_change = ((final_open - open_x)/ open_x) * 100
     capped_pct_change = min(pct_change, 500)
@@ -63,9 +78,11 @@ def train_test_accuracy(model, train_data_loader, val_data_loader, epoch, silent
     train_total, train_correct = 0, 0
     true_positive_train = 0
     with torch.no_grad(): #saves computation time
-        for train_X, train_y in train_data_loader:
-            train_X, train_y = train_X.to(device), train_y.to(device)
-            predictions = model(train_X)
+        for train_X_mov, train_X_stat, train_y in train_data_loader:
+            train_X_mov, train_y = train_X_mov.to(device),  train_y.to(device)
+            if train_X_stat is not None:
+                train_X_stat = train_X_stat.to(device)
+            predictions = model(train_X_mov, static_x = train_X_stat)
             binary_pred = (predictions > 0).squeeze(1)
             train_total += train_y.size(0) #number of datapoints
             train_correct += (binary_pred == train_y.byte()).sum().item()
@@ -86,9 +103,11 @@ def train_test_accuracy(model, train_data_loader, val_data_loader, epoch, silent
     val_total, val_correct = 0, 0
     true_positive_val = 0
     with torch.no_grad():
-        for val_X, val_y, _ in val_data_loader:
-            val_X, val_y = val_X.to(device), val_y.to(device)
-            predictions = model(val_X)
+        for val_X_mov, val_X_stat, val_y, _ in val_data_loader:
+            val_X_mov, val_y = val_X_mov.to(device), val_y.to(device)
+            if val_X_stat is not None:
+                 val_X_stat = val_X_stat.to(device)
+            predictions = model(val_X_mov, static_x = val_X_stat)
             binary_pred = (predictions > 0).squeeze(1)
             val_total += val_y.size(0) 
             val_correct += (binary_pred == val_y.byte()).sum().item()
@@ -105,7 +124,7 @@ def train_test_accuracy(model, train_data_loader, val_data_loader, epoch, silent
 
     return cond_prob_train, cond_prob_val
 
-def graph_train_valid_error(train_accuracy, valid_accuracy, feature_names):
+def graph_train_valid_error(train_accuracy, valid_accuracy, feature_names_all):
     x_values = [i + 1 for i in range(len(train_accuracy))]
 
     plt.figure(figsize=(8, 6))
@@ -113,16 +132,16 @@ def graph_train_valid_error(train_accuracy, valid_accuracy, feature_names):
     plt.plot(x_values, valid_accuracy, label='Validation Accuracy', marker='x')
     plt.xlabel('Epoch (Index + 1)')
     plt.ylabel('Accuracy')
-    plt.title(f'Training and Validation Accuracy over {feature_names}')
+    plt.title(f'Training and Validation Accuracy over {feature_names_all}')
     plt.legend()
     plt.show()
 
 
 
-def get_deep_learning_data(train_months, val_months, feature_names, randomized = False, silent = False, include_date = False):
+def get_deep_learning_data(train_months, val_months, feature_names_mov, feature_names_static, randomized = False, silent = False, include_date = False):
     #import training here
 
-    folder_names_dict = get_folder_names(suffix = "_extra_features_60")
+    folder_names_dict = get_folder_names(suffix = "_json_padded_cleaned")
 
 
     train_folders = []
@@ -155,12 +174,12 @@ def get_deep_learning_data(train_months, val_months, feature_names, randomized =
             val_csvs = all_csvs[20000:]
         
 
-    X_train, y_train, pct_train = load_dataset(train_csvs, CHANGE_NEEDED, FIRST_N_MINUTES, logistic_eval, feature_names,
+    X_train_mov, X_train_stat, y_train, pct_train = load_dataset(train_csvs, CHANGE_NEEDED, FIRST_N_MINUTES, logistic_eval, feature_names_mov, feature_names_static,
                                         silent = silent, days_of_week=days_of_week_train, days_from_begin=dif_from_begin_train)
 
 
 
-    X_val, y_val, pct_val = load_dataset(val_csvs, CHANGE_NEEDED, FIRST_N_MINUTES, logistic_eval, feature_names,
+    X_val_mov, X_val_stat, y_val, pct_val = load_dataset(val_csvs, CHANGE_NEEDED, FIRST_N_MINUTES, logistic_eval, feature_names_mov, feature_names_static,
                                         silent = silent, days_of_week=days_of_week_val, days_from_begin=dif_from_begin_val)
 
 
@@ -173,7 +192,7 @@ def get_deep_learning_data(train_months, val_months, feature_names, randomized =
         print(f'Average change of train: {sum(pct_train)/len(pct_train)}')
         print(f'Average change of test: {sum(pct_val)/len(pct_val)}')
 
-    return X_train, y_train, X_val, y_val, val_csvs
+    return X_train_mov, X_train_stat, y_train, X_val_mov, X_val_stat, y_val, val_csvs
 
 
 
@@ -186,62 +205,28 @@ def confirm_no_overlap(train_folders, test_folders):
 
 
 
-def get_folder_names(prefix = "data/", suffix = "_ohlcv_padded_low_volume_dropped"):
+def get_folder_names(prefix = "init_data/", suffix = "_json_padded"):
     all_batches = {}
 
-    sep_days_1 = [f"{i:02d}" for i in range(1, 16)]
-    sep_days_2 = [f"{i:02d}" for i in range(16, 31)]
-    sep_data_1 = [prefix + 'sep' + day + suffix for day in sep_days_1]
-    sep_data_2 = [prefix + 'sep' + day + suffix for day in sep_days_2]
-    all_batches['sep1'] = sep_data_1
-    all_batches['sep2'] = sep_data_2
-
-
-    oct_days_1 = [f"{i:02d}" for i in range(1, 16)]
-    oct_days_2 = [f"{i:02d}" for i in range(16, 32)]
-    oct_data_1 = [prefix + 'oct' + day + suffix for day in oct_days_1]
-    oct_data_2 = [prefix + 'oct' + day + suffix for day in oct_days_2]
-    all_batches['oct1'] = oct_data_1
-    all_batches['oct2'] = oct_data_2
-
-
-    nov_days_1 = [f"{i:02d}" for i in range(1, 16)]
-    nov_days_2 = [f"{i:02d}" for i in range(16, 31)]
-    nov_data_1 = [prefix + 'nov' + day + suffix for day in nov_days_1]
-    nov_data_2 = [prefix + 'nov' + day + suffix for day in nov_days_2]
-    all_batches['nov1'] = nov_data_1
-    all_batches['nov2'] = nov_data_2
-
-
-    dec_days_1 = [f"{i:02d}" for i in range(1, 16)]
-    dec_days_2 = [f"{i:02d}" for i in range(16, 32)]
-    dec_data_1 = [prefix + 'dec' + day + suffix for day in dec_days_1]
-    dec_data_2 = [prefix + 'dec' + day + suffix for day in dec_days_2]
-    all_batches['dec1'] = dec_data_1
-    all_batches['dec2'] = dec_data_2
-
-
-    jan_days_1 = [f"{i:02d}" for i in range(1, 16)]
-    jan_days_2 = [f"{i:02d}" for i in range(16, 32)]
-    jan_data_1 = [prefix + 'jan' + day + suffix for day in jan_days_1]
-    jan_data_2 = [prefix + 'jan' + day + suffix for day in jan_days_2]
-    all_batches['jan1'] = jan_data_1
-    all_batches['jan2'] = jan_data_2
-
-
-    feb_days_1 = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13']
-    feb_days_2 = ['14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28']
-    feb_data_1 = [prefix + 'feb' + day + suffix for day in feb_days_1]
-    feb_data_2 = [prefix + 'feb' + day + suffix for day in feb_days_2]
-    all_batches['feb1'] = feb_data_1
-    all_batches['feb2'] = feb_data_2
-
+    all_batches['sep'] = prefix + 'sep' + suffix
+    all_batches['oct'] = prefix + 'oct' + suffix
+    all_batches['nov'] = prefix + 'nov' + suffix
+    all_batches['dec'] = prefix + 'dec' + suffix
+    all_batches['jan'] = prefix + 'jan' + suffix
+    all_batches['feb'] = prefix + 'feb' + suffix
     return all_batches
 
 
+def get_static_features(json_data, static_feature_names):
+    data = []
+    for name in static_feature_names:
+        data.append(json_data[name])
 
+    if json_data['processed_data']['above_bar_15_min_in'] == 0 and json_data['processed_data']['above_bar_30_min_in'] == 0:
+        raise ValueError("Datapoint should never have been in train or test set, died less than 15/30 minutes in")
+    return data
 
-def get_first_x_features(df, x, feature_names, days_from_begin = None, day_of_week = None):
+def get_first_x_features_movement(df, x, feature_names, days_from_begin = None, day_of_week = None):
     #sub_df = df.iloc[:x, 1:6] #taking columns one to five
 
     sub_df = df.loc[:x-1, feature_names]
@@ -273,10 +258,10 @@ def logistic_eval(final_open, open_x, change):
 
 
 
-def load_dataset(csv_files, change, x, evaluation_func, feature_names, store_full_df = False, silent = False, 
-                days_of_week = None, days_from_begin = None):
+def load_dataset(csv_files, change, x, evaluation_func, movement_feature_names, static_feature_names, store_full_df = False, silent = False, 
+                days_of_week = None, days_from_begin = None, first_min = 30):
                 
-    X, y, pct_changes = [], [], []
+    X_mov, y, X_stat, pct_changes = [], [], [], []
     num_processed = 0
     full_dfs = []
     for i, csv_file in enumerate(csv_files):
@@ -288,14 +273,20 @@ def load_dataset(csv_files, change, x, evaluation_func, feature_names, store_ful
         
         
         try:
-            df = pd.read_csv(csv_file)
+            df, json_data = read_our_json_file(csv_file)
 
             if df.empty:
                 print(f'Problem: Encountered Empty Df in Util')
                 continue
+
         except Exception as e:
             print(f'Problem: Failed To Read Dataframe in Util with error {e}')
             continue
+
+        if json_data['processed_data']['above_bar_' + str(first_min) + "_in"] == 0:
+            continue
+
+
         
         days_dist = None
         if days_from_begin != None:
@@ -304,9 +295,12 @@ def load_dataset(csv_files, change, x, evaluation_func, feature_names, store_ful
         if days_of_week != None:
             day_of_week = days_of_week[i]
 
-        features = get_first_x_features(df, x, feature_names, days_dist, day_of_week)
-        
-        if features is None or df.shape[0] <= x:
+
+        features_stat = get_static_features(json_data, static_feature_names)
+        X_stat.append(features_stat)
+
+        features_mov = get_first_x_features_movement(df, x, movement_feature_names, days_dist, day_of_week)
+        if features_mov is None or df.shape[0] <= x:
             print("Problem: Not Enough Rows in Util")
             print("Problem 1")
             continue
@@ -323,26 +317,29 @@ def load_dataset(csv_files, change, x, evaluation_func, feature_names, store_ful
         pct_change = ((final_open - open_x)/ open_x) * 100
         pct_change = min(pct_change, 500)
 
-
-
-        X.append(features)
+        X_mov.append(features_mov)
         y.append(label)
         pct_changes.append(pct_change)
 
         if store_full_df:
             full_dfs.append(df)
 
-    X = np.array(X)
+    X_mov = np.array(X_mov)
+
+    X_stat = np.array(X_stat)
+    if len(static_feature_names) == 0:
+        X_stat = None
+
     y = np.array(y)
     pct_changes = np.array(pct_changes)
 
     if not silent:
         print(f"Total CSV files processed: {num_processed}")
-        print(f"Total in dataset: {len(X)}")
+        print(f"Total in dataset: {len(X_mov)}")
     if store_full_df:
-        return X, y, pct_changes, full_dfs
+        return X_mov, X_stat, y, pct_changes, full_dfs
     
-    return X, y, pct_changes
+    return X_mov, X_stat, y, pct_changes
 
 
 
@@ -431,23 +428,23 @@ def combine_logistic_continuous_preds(logistic_predictions, continuous_predictio
         total_pred_each_datapoint = len(logistic_predictions[0]) + len(continuous_predictions[0])
         for i in range(total_datapoints):
 
-            sum = 0
+            total_sum = 0
             log = logistic_predictions[i]
             for l in log:
                 if l == 0:
-                    sum -= logistic_weight
+                    total_sum -= logistic_weight
   
                 else:
-                    sum += logistic_weight
+                    total_sum += logistic_weight
 
 
             cont = continuous_predictions[i]
             for c in cont:
-                sum += c
+                total_sum += c
 
 
 
-            if sum/total_pred_each_datapoint > threshold:
+            if total_sum/total_pred_each_datapoint > threshold:
                 preds.append(1)
             else:
                 preds.append(0)
@@ -629,13 +626,14 @@ def randomize_with_date(train_csvs, val_csvs, days_of_week_train, dif_from_begin
 
 def gather_all_csv(folder_names):
     all_csv = []
-    all_days = []
     for folder in folder_names:
         if os.path.isdir(folder):
             for fname in os.listdir(folder):
-                if fname.endswith(".csv"):
+                if fname.endswith(".json"):
                     all_csv.append(os.path.join(folder, fname))
     return all_csv
+
+
 
 def clear_screen():
     for i in range(300):
