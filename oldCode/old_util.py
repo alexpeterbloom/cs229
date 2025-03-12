@@ -53,7 +53,53 @@ def get_first_x_features(df, day_of_week, include_time, x):
 
     return flattened
 
+def gather_all_date_info(folder_names):
+    month_map = {
+        'jan': 1,
+        'feb': 2,
+        'mar': 3,
+        'apr': 4,
+        'may': 5,
+        'jun': 6,
+        'jul': 7,
+        'aug': 8,
+        'sep': 9,
+        'oct': 10,
+        'nov': 11,
+        'dec': 12
+    }
 
+    day_map = {
+        'Monday': 1,
+        'Tuesday': 2,
+        'Wednesday': 3,
+        'Thursday': 4,
+        'Friday': 5,
+        'Saturday': 6,
+        'Sunday': 7
+    }
+
+    days_of_week, dif_from_begin_list = [], []
+    for folder in folder_names:
+        info = folder.split("/")[1]
+        date = info.split("_")[0]
+        month = date[:3]
+        day = int(date[3:])
+        year = 2025
+        if month == 'nov' or month == 'dec':
+            year = 2024
+        
+        month = month_map[month]
+        input_date = datetime.date(int(year), int(month), int(day))
+        
+        target_date = datetime.date(2024, 11, 1)
+        
+        day_of_week = input_date.strftime("%A")
+        day_of_week = day_map[day_of_week]
+        days_since_beginning = (input_date - target_date).days
+        days_of_week.append(day_of_week)
+        dif_from_begin_list.append(days_since_beginning)
+    return days_of_week, dif_from_begin_list
 
 def get_folder_names(prefix = "data/", suffix = "_ohlcv_padded_low_volume_dropped"):
     all_batches = {}

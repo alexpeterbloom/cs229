@@ -14,7 +14,10 @@ class TimeSeriesData(Dataset):
         self.y = y.astype(np.float32)
         X = X.astype(np.float32)
         self.X = X.reshape(-1, seq_length, num_features)
-        self.static = static.astype(np.float32) if static is not None else None
+        if static is not None and static.size != 0:
+            self.static = static.astype(np.float32)
+        else:
+            self.static = None
         self.file_names = file_names
 
     def __len__(self):
@@ -30,10 +33,11 @@ class TimeSeriesData(Dataset):
             else:
                 return x, static_x, y
         else:
+            dummy_static = torch.empty(0)
             if self.file_names is not None:
-                return x, None, y, self.file_names[idx]
+                return x, dummy_static, y, self.file_names[idx]
             else:
-                return x, None, y
+                return x, dummy_static, y
     
     
 
@@ -80,10 +84,10 @@ class LSTM(nn.Module):
         return final_out
     
 
-def get_data_loaders(train_months, val_months, feature_names_mov, feature_names_static, randomized = False, silent = False, include_date = False, batch_size = 1):
+def get_data_loaders(train_months, val_months, feature_names_mov, feature_names_static, randomized = False, silent = False, batch_size = 1):
     
 
-    X_train_mov, X_train_stat, y_train, X_val_mov, X_val_stat, y_val, file_names_val = get_deep_learning_data(train_months, val_months, feature_names_mov, feature_names_static, randomized, silent, include_date)
+    X_train_mov, X_train_stat, y_train, X_val_mov, X_val_stat, y_val, file_names_val = get_deep_learning_data(train_months, val_months, feature_names_mov, feature_names_static, randomized, silent)
 
     num_features_mov = len(feature_names_mov)
 
@@ -97,8 +101,8 @@ def get_data_loaders(train_months, val_months, feature_names_mov, feature_names_
     return train_data_loader, val_data_loader
 
 
-def train_model(train_months, val_months, num_epochs, hidden_size, feature_names_mov, feature_names_static, randomized = False, silent = False, include_date = False, batch_size = 30, dropout = 0):
-    train_data_loader, val_data_loader = get_data_loaders(train_months, val_months, feature_names_mov, feature_names_static, randomized, silent, include_date, batch_size= batch_size)
+def train_model(train_months, val_months, num_epochs, hidden_size, feature_names_mov, feature_names_static, randomized = False, silent = False, batch_size = 30, dropout = 0):
+    train_data_loader, val_data_loader = get_data_loaders(train_months, val_months, feature_names_mov, feature_names_static, randomized, silent, batch_size= batch_size)
     
     input_size_mov = len(feature_names_mov)
 
@@ -121,7 +125,7 @@ def train_model(train_months, val_months, num_epochs, hidden_size, feature_names
 
         for batch_x_mov, batch_x_stat, batch_y in train_data_loader:
             batch_x_mov = batch_x_mov.to(device)
-            if batch_x_stat is not None:
+            if batch_x_stat.numel() > 0:
                 batch_x_stat = batch_x_stat.to(device)
             batch_y = batch_y.to(device)
 
@@ -135,7 +139,7 @@ def train_model(train_months, val_months, num_epochs, hidden_size, feature_names
             loss.backward()
             optimizer.step()
 
-        if (epoch+1) % 3 == 0:
+        if (epoch+1) % 1 == 0:
             t_acc, v_acc = train_test_accuracy(model, train_data_loader, val_data_loader, epoch, silent)
             train_acc.append(t_acc)
             val_acc.append(v_acc)
@@ -145,17 +149,18 @@ def train_model(train_months, val_months, num_epochs, hidden_size, feature_names
 
 
 if __name__ == '__main__':
-    train = [ 'sep1', 'sep2', 'oct1', 'oct2', 'nov1', 'nov2', 'dec1', 'dec2']
-    val = ['jan1', 'jan2', 'feb1', 'feb2']
+    train = ['oct', 'nov', 'dec', 'jan']
+    val = ['feb']
 
 
-    features_mov = ['volume', 'norm_open', 'mov_in_min']
+    features_mov = ['open', 'volume', 'high', 'low']
+    features_stat = [['processed_data', 'creator_data', 'other_coins_30_return']]
     features_stat = []
     epochs = 25
     hidden = 20
     is_random = False
-    batch = 10
-    dropout = 0
-    print(f'Running for {features_mov}, {features_stat}, {epochs}, {hidden}, {is_random}, {batch}, {dropout}')
-    train_model(train, val, num_epochs = epochs, hidden_size = hidden, feature_names_mov = features_mov, feature_names_static=features_stat, randomized = is_random, silent = False, include_date = False, batch_size = batch, dropout = dropout)
+    batch = 1
+    dropout = 0.2
+    print(f'Running for {features_mov}, {features_stat}, {epochs}, {hidden}, {is_random}, {batch}, {dropout}, {CHANGE_NEEDED}')
+    train_model(train, val, num_epochs = epochs, hidden_size = hidden, feature_names_mov = features_mov, feature_names_static=features_stat, randomized = is_random, silent = False, batch_size = batch, dropout = dropout)
 

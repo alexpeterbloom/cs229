@@ -11,7 +11,7 @@ import torch
 import json
 
 VOTES_NEEDED = 4
-CHANGE_NEEDED = 1
+CHANGE_NEEDED = 0.8
 FIRST_N_MINUTES = 30
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #using m2 gpu
@@ -34,7 +34,8 @@ def print_ones_in_val(model, val_data_loader):
     with torch.no_grad():
         for batch_x_mov, stat_x_mov, _, batch_file_names in val_data_loader:
             batch_x_mov = batch_x_mov.to(device)
-            if stat_x_mov is not None:
+            
+            if stat_x_mov.numel() > 0:
                 stat_x_mov = stat_x_mov.to(device)
             outputs = model(batch_x_mov, static_x = stat_x_mov)
 
@@ -43,7 +44,7 @@ def print_ones_in_val(model, val_data_loader):
 
             for i, pred in enumerate(predictions):
                 if pred == 1:
-                    print(f'Predicted 1 for file: {batch_file_names[i]}')
+                    #print(f'Predicted 1 for file: {batch_file_names[i]}')
                     change, capped_change = get_percent_return(batch_file_names[i])
                     one_count += 1
                     total_return += change
@@ -80,10 +81,11 @@ def train_test_accuracy(model, train_data_loader, val_data_loader, epoch, silent
     with torch.no_grad(): #saves computation time
         for train_X_mov, train_X_stat, train_y in train_data_loader:
             train_X_mov, train_y = train_X_mov.to(device),  train_y.to(device)
-            if train_X_stat is not None:
+            if train_X_stat.numel() > 0:
                 train_X_stat = train_X_stat.to(device)
-            predictions = model(train_X_mov, static_x = train_X_stat)
-            binary_pred = (predictions > 0).squeeze(1)
+            predictions = torch.sigmoid(model(train_X_mov, static_x = train_X_stat))
+
+            binary_pred = (predictions > 0.5).squeeze(1)
             train_total += train_y.size(0) #number of datapoints
             train_correct += (binary_pred == train_y.byte()).sum().item()
             ones_pred_train += binary_pred.sum().item() 
@@ -105,10 +107,10 @@ def train_test_accuracy(model, train_data_loader, val_data_loader, epoch, silent
     with torch.no_grad():
         for val_X_mov, val_X_stat, val_y, _ in val_data_loader:
             val_X_mov, val_y = val_X_mov.to(device), val_y.to(device)
-            if val_X_stat is not None:
+            if val_X_stat.numel() > 0:
                  val_X_stat = val_X_stat.to(device)
-            predictions = model(val_X_mov, static_x = val_X_stat)
-            binary_pred = (predictions > 0).squeeze(1)
+            predictions = torch.sigmoid(model(val_X_mov, static_x = val_X_stat))
+            binary_pred = (predictions > 0.5).squeeze(1)
             val_total += val_y.size(0) 
             val_correct += (binary_pred == val_y.byte()).sum().item()
             ones_pred_val += binary_pred.sum().item()
@@ -132,42 +134,37 @@ def graph_train_valid_error(train_accuracy, valid_accuracy, feature_names_all):
     plt.plot(x_values, valid_accuracy, label='Validation Accuracy', marker='x')
     plt.xlabel('Epoch (Index + 1)')
     plt.ylabel('Accuracy')
-    plt.title(f'Training and Validation Accuracy over {feature_names_all}')
+    plt.title(f'Training and Validation Accuracy over {feature_names_all.append(CHANGE_NEEDED)}')
     plt.legend()
     plt.show()
 
 
 
-def get_deep_learning_data(train_months, val_months, feature_names_mov, feature_names_static, randomized = False, silent = False, include_date = False):
+def get_deep_learning_data(train_months, val_months, feature_names_mov, feature_names_static, randomized = False, silent = False):
     #import training here
 
-    folder_names_dict = get_folder_names(suffix = "_json_padded_cleaned")
-
+    folder_names_dict = get_folder_names(prefix = "data/", suffix = "_json_padded")
+    
 
     train_folders = []
     for month in train_months:
-        train_folders += folder_names_dict[month]
+        train_folders.append(folder_names_dict[month])
 
     val_folders = []
     for month in val_months:
-        val_folders += folder_names_dict[month]
+        val_folders.append(folder_names_dict[month])
 
+
+    print('train', train_folders)
     train_csvs = gather_all_csv(train_folders)
     val_csvs = gather_all_csv(val_folders)
 
 
 
     dif_from_begin_train, dif_from_begin_val, days_of_week_train, days_of_week_val = None, None, None, None
-    if include_date:
-        days_of_week_train, dif_from_begin_train = gather_all_date_info(train_csvs)
-        days_of_week_val, dif_from_begin_val = gather_all_date_info(val_csvs)
 
 
     if randomized:
-        if include_date:
-            train_csvs, val_csvs, days_of_week_train, dif_from_begin_train, days_of_week_val, dif_from_begin_val = \
-            randomize_with_date(train_csvs, val_csvs, days_of_week_train, dif_from_begin_train, days_of_week_val, dif_from_begin_val)
-        else:
             all_csvs = train_csvs + val_csvs
             random.shuffle(all_csvs)
             train_csvs = all_csvs[:20000]
@@ -176,7 +173,6 @@ def get_deep_learning_data(train_months, val_months, feature_names_mov, feature_
 
     X_train_mov, X_train_stat, y_train, pct_train = load_dataset(train_csvs, CHANGE_NEEDED, FIRST_N_MINUTES, logistic_eval, feature_names_mov, feature_names_static,
                                         silent = silent, days_of_week=days_of_week_train, days_from_begin=dif_from_begin_train)
-
 
 
     X_val_mov, X_val_stat, y_val, pct_val = load_dataset(val_csvs, CHANGE_NEEDED, FIRST_N_MINUTES, logistic_eval, feature_names_mov, feature_names_static,
@@ -220,7 +216,10 @@ def get_folder_names(prefix = "init_data/", suffix = "_json_padded"):
 def get_static_features(json_data, static_feature_names):
     data = []
     for name in static_feature_names:
-        data.append(json_data[name])
+        sub_json = json_data
+        for sub_category in name:
+            sub_json = sub_json[sub_category]
+        data.append(sub_json)
 
     if json_data['processed_data']['above_bar_15_min_in'] == 0 and json_data['processed_data']['above_bar_30_min_in'] == 0:
         raise ValueError("Datapoint should never have been in train or test set, died less than 15/30 minutes in")
@@ -283,7 +282,8 @@ def load_dataset(csv_files, change, x, evaluation_func, movement_feature_names, 
             print(f'Problem: Failed To Read Dataframe in Util with error {e}')
             continue
 
-        if json_data['processed_data']['above_bar_' + str(first_min) + "_in"] == 0:
+
+        if json_data['processed_data']['above_bar_' + str(first_min) + "_min_in"] == 0:
             continue
 
 
@@ -553,53 +553,6 @@ def train_model_and_pred(X_train, y_train, X_test, model):
     return preds
 
 
-def gather_all_date_info(folder_names):
-    month_map = {
-        'jan': 1,
-        'feb': 2,
-        'mar': 3,
-        'apr': 4,
-        'may': 5,
-        'jun': 6,
-        'jul': 7,
-        'aug': 8,
-        'sep': 9,
-        'oct': 10,
-        'nov': 11,
-        'dec': 12
-    }
-
-    day_map = {
-        'Monday': 1,
-        'Tuesday': 2,
-        'Wednesday': 3,
-        'Thursday': 4,
-        'Friday': 5,
-        'Saturday': 6,
-        'Sunday': 7
-    }
-
-    days_of_week, dif_from_begin_list = [], []
-    for folder in folder_names:
-        info = folder.split("/")[1]
-        date = info.split("_")[0]
-        month = date[:3]
-        day = int(date[3:])
-        year = 2025
-        if month == 'nov' or month == 'dec':
-            year = 2024
-        
-        month = month_map[month]
-        input_date = datetime.date(int(year), int(month), int(day))
-        
-        target_date = datetime.date(2024, 11, 1)
-        
-        day_of_week = input_date.strftime("%A")
-        day_of_week = day_map[day_of_week]
-        days_since_beginning = (input_date - target_date).days
-        days_of_week.append(day_of_week)
-        dif_from_begin_list.append(days_since_beginning)
-    return days_of_week, dif_from_begin_list
         
 
 def randomize_with_date(train_csvs, val_csvs, days_of_week_train, dif_from_begin_train, days_of_week_val, dif_from_begin_val):

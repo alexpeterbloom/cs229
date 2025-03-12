@@ -5,12 +5,92 @@ import shutil
 import time
 import json
 import numpy as np
+import csv
+import bisect
+
+
+def load_candles(csv_filename):
+    candles = []
+    with open(csv_filename, "r", newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            candle = {
+                "timestamp": int(row["timestamp"]),
+                "open": float(row["open"]),
+                "volume": float(row["volume"])
+            }
+            candles.append(candle)
+    candles.sort(key=lambda x: x["timestamp"])
+    return candles
+
+
+def find_closest_candle(timestamp, candles):
+    # Create a list of start times for binary search.
+    starts = [candle["timestamp"] for candle in candles]
+    pos = bisect.bisect_left(starts, timestamp)
+    
+    if pos == 0:
+        return candles[0]
+    elif pos == len(candles):
+        return candles[-1]
+    else:
+        before = candles[pos - 1]
+        after = candles[pos]
+        if abs(before["timestamp"] - timestamp) <= abs(after["timestamp"] - timestamp):
+            return before
+        else:
+            return after
+
+def sum_volume_interval(start_interval, end_interval, candles):
+    total = sum(candle["volume"] for candle in candles if start_interval < candle["timestamp"] <= end_interval + 10)
+    return total
+
+def get_market_data(migration_ts, candles, sol = True):
+    # Find the candle closest to the migration timestamp.
+    migration_candle = find_closest_candle(migration_ts, candles)
+    
+    # Calculate 24h metrics:
+    ts_24h = migration_ts - 24 * 3600
+    candle_24h = find_closest_candle(ts_24h, candles)
+    # Sum volume for all candles in the 24-hour period preceding the migration timestamp.
+    vol_24h = sum_volume_interval(ts_24h, migration_ts, candles)
+    
+    
+    price_migration  = migration_candle["open"]
+    price_change_24h = (migration_candle["open"] - candle_24h["open"]) / candle_24h["open"]
+    
+    # Calculate 7-day metrics:
+    ts_7d = migration_ts - 7 * 24 * 3600
+
+    candle_7d = find_closest_candle(ts_7d, candles)
+    
+    price_change_7d  = (migration_candle["open"] - candle_7d["open"]) / candle_7d["open"]
+    
+    if sol:
+        return {
+            "price_at_migration": price_migration / 100, # diving by 100 to get a sol price between 0 and 1
+            "vol_24hr": vol_24h,
+            "price_change_24h": price_change_24h,
+            "price_change_7d": price_change_7d,
+        }
+    else:
+        return {
+            "price_at_migration": price_migration / 100000, # diving by 100,000 to get a btc price between 0 and 1
+            "vol_24hr": vol_24h,
+            "price_change_24h": price_change_24h,
+            "price_change_7d": price_change_7d,
+        }
+
 
 
 #problem is in this function
 def creator_to_coins_mapping():
-    df = pd.read_csv('mastersheet_with_filenames.csv')
+    df = pd.read_csv('mastersheet_with_filenames_v2.csv')
     df = df.dropna(subset=['index'])
+    print(len(df))
+    df = df.dropna(subset=['file_name'])
+    print(len(df))
+
     init_dict = df.groupby("token_creator")["file_name"].apply(list).to_dict()
 
     prefix = "init_data/"
@@ -39,7 +119,7 @@ def creator_to_coins_mapping():
         if count > 5:
             #print(key)
             pass
-    
+    print(creator_files_dict['Cbo6pdGQowiMuYjVtqXoZ5wSC9Z9G7vePffcvwDihkQw'])
     return creator_files_dict
 
 
@@ -117,10 +197,24 @@ def above_min_bar(json_file, min_in, label, bar = 1e-05):
         json_file['processed_data'][label] = '0'
     return json_file
 
+
+
+def add_other_coins_data(json_file, migration_time, sol_candles, btc_candles):
+    sol_info = get_market_data(migration_time, sol_candles, sol = True)
+    btc_info = get_market_data(migration_time, btc_candles, sol = False)
+
+    # Update the JSON data with the new market info.
+    json_file["processed_data"]["sol_market_data"] = sol_info
+    json_file["processed_data"]["btc_market_data"] = btc_info
+    return json_file
+
 def add_data_to_all_jsons():
     TEN_HOURS = 60 * 60 * 10 #Youssef confirm
     creator_to_coins = creator_to_coins_mapping()
     csv_files = get_all_json_files()
+    sol_candles = load_candles("major_coins_data/SOL-USD.csv")
+    btc_candles = load_candles("major_coins_data/BTC-USD.csv")
+
 
 
     for file_n in csv_files:
@@ -141,6 +235,7 @@ def add_data_to_all_jsons():
             
         except:
             print("Error finding creator. Continuing")
+            print(file_n)
             continue
         try:
             other_coins.remove(file_n)
@@ -157,7 +252,7 @@ def add_data_to_all_jsons():
         
         other_coins_creation_ts = []
 
-
+        json_file = add_other_coins_data(json_file, og_coin_migration_time, sol_candles, btc_candles)
         
         json_file = add_total_returns(json_file)
 
