@@ -45,7 +45,8 @@ class DenseTwoLayerNetwork(nn.Module): #inheriting from PyTorch nn Module
 
 def get_data_loaders(train_months, val_months, feature_names, randomized = False, silent = False, include_date = False):
     
-    X_train, y_train, X_val, y_val = get_deep_learning_data(train_months, val_months, feature_names, randomized, silent, include_date)
+    feature_names_static = []
+    X_train, x_stat, y_train, X_val, x_stat, y_val, csvs = get_deep_learning_data(train_months, val_months, feature_names, feature_names_static, randomized = False, silent = False)
 
     train_dataset = Data(X_train, y_train)
     val_dataset = Data(X_val, y_val)
@@ -81,7 +82,7 @@ def train_model(train_months, val_months, feature_names, num_epochs = 10, silent
             train_acc.append(t_acc)
             valid_acc.append(v_acc)
         model.train() #put model in traning mode
-        for batch_X, batch_y in train_data_loader:
+        for batch_X, stat_x, batch_y in train_data_loader:
             #gradients accumulate in pytorch, so this resets them all
             optimizer.zero_grad()
 
@@ -93,6 +94,7 @@ def train_model(train_months, val_months, feature_names, num_epochs = 10, silent
 
     if not silent:  
         graph_train_valid_error(train_acc, valid_acc, feature_names)
+        train_test_accuracy(model, train_data_loader, val_data_loader, epoch, silent = False)
     else:
         t_acc, v_acc = train_test_accuracy(model, train_data_loader, val_data_loader, epoch, silent = True)
         return t_acc, v_acc
@@ -121,12 +123,24 @@ def grid_search(train_months, val_months, feature_combos, num_epochs, times_run)
 
     
 def main():
-    train = [ 'sep1', 'sep2', 'oct1', 'oct2', 'nov1', 'nov2', 'dec1', 'dec2']
-    val = ['jan1', 'jan2', 'feb1', 'feb2']
 
+    train = ['sep', 'oct', 'nov', 'dec', 'jan']
+    val = ['feb']
+
+    folder_names_dict = get_folder_names(prefix = "data/", suffix = "_json_padded")
+    
+
+    train_folders = []
+    for month in train:
+        train_folders.append(folder_names_dict[month])
+
+    val_folders = []
+    for month in val:
+        val_folders.append(folder_names_dict[month])
+ 
     #features = ['open','high','low','close','volume','usd_vol','price_change','vol_change','norm_open','mov_in_min']
 
-    feature_names = ['volume']
+    feature_names = ['volume', 'open', 'high', 'low', 'close']
     print(f'Running for {feature_names}')
     
 
@@ -139,7 +153,7 @@ def main():
 
     #grid_search(train, val, feature_combos, num_epochs= 200, times_run = 5)
 
-    train_model(train, val, feature_names, num_epochs=200, randomized=True, include_date=False)
+    train_model(train, val, feature_names, num_epochs=100, randomized=False, include_date=False)
 
 
 main()

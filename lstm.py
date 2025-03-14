@@ -9,6 +9,7 @@ from util import *
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #using m2 gpu
 
 
+
 class TimeSeriesData(Dataset):
     def __init__(self, X, y, seq_length, num_features, static = None, file_names = None):
         self.y = y.astype(np.float32)
@@ -39,9 +40,7 @@ class TimeSeriesData(Dataset):
             else:
                 return x, dummy_static, y
     
-    
 
-    
 
 class LSTM(nn.Module):
     #num features is amount of datapoints we give for each minute
@@ -85,7 +84,7 @@ class LSTM(nn.Module):
     
 
 def get_data_loaders(train_months, val_months, feature_names_mov, feature_names_static, randomized = False, silent = False, batch_size = 1):
-    
+    print("getting data loaders now")
 
     X_train_mov, X_train_stat, y_train, X_val_mov, X_val_stat, y_val, file_names_val = get_deep_learning_data(train_months, val_months, feature_names_mov, feature_names_static, randomized, silent)
 
@@ -98,12 +97,13 @@ def get_data_loaders(train_months, val_months, feature_names_mov, feature_names_
     #used for batching data, import to shuffle since our data is time series
     train_data_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle = True) 
     val_data_loader = DataLoader(val_dataset, batch_size = batch_size)  
+    print('finishing data loaders')
     return train_data_loader, val_data_loader
 
 
-def train_model(train_months, val_months, num_epochs, hidden_size, feature_names_mov, feature_names_static, randomized = False, silent = False, batch_size = 30, dropout = 0):
-    train_data_loader, val_data_loader = get_data_loaders(train_months, val_months, feature_names_mov, feature_names_static, randomized, silent, batch_size= batch_size)
-    
+def train_model(train_months, val_months, num_epochs, hidden_size, feature_names_mov, feature_names_static, randomized = False, silent = False, batch_size = 30, dropout = 0, lr = 0.001, train_data_loader = None, val_data_loader = None, graph  = True):
+    if train_data_loader is None:
+        train_data_loader, val_data_loader = get_data_loaders(train_months, val_months, feature_names_mov, feature_names_static, randomized, silent, batch_size= batch_size)
     input_size_mov = len(feature_names_mov)
 
     input_size_static = len(feature_names_static)
@@ -114,7 +114,7 @@ def train_model(train_months, val_months, num_epochs, hidden_size, feature_names
     model = LSTM(input_size_mov, hidden_size, num_layers, static_input_size = input_size_static, dropout_rate= dropout)
 
     loss_function = nn.BCEWithLogitsLoss()
-    optimizer = optim.Adam(model.parameters(), lr = 0.001)
+    optimizer = optim.Adam(model.parameters(), lr = lr)
 
     model.to(device)
     train_test_accuracy(model, train_data_loader, val_data_loader, 0, silent)
@@ -139,28 +139,34 @@ def train_model(train_months, val_months, num_epochs, hidden_size, feature_names
             loss.backward()
             optimizer.step()
 
-        if (epoch+1) % 1 == 0:
-            t_acc, v_acc = train_test_accuracy(model, train_data_loader, val_data_loader, epoch, silent)
-            train_acc.append(t_acc)
-            val_acc.append(v_acc)
-    print_ones_in_val(model, val_data_loader)
-    graph_train_valid_error(train_acc, val_acc, feature_names_mov + feature_names_static + [dropout])
+        if not silent:
+            if (epoch+1) % 3 == 0:
+                t_acc, v_acc = train_test_accuracy(model, train_data_loader, val_data_loader, epoch, silent)
+                train_acc.append(t_acc)
+                val_acc.append(v_acc)
 
+    if not silent:
+        train_test_accuracy(model, train_data_loader, val_data_loader, epoch, silent)
+        graph_train_valid_error(train_acc, val_acc, feature_names_mov + feature_names_static + [dropout])
 
+    return model
 
 if __name__ == '__main__':
-    train = ['oct', 'nov', 'dec', 'jan']
+    train = ['sep', 'oct', 'nov', 'dec', 'jan']
     val = ['feb']
 
 
     features_mov = ['open', 'volume', 'high', 'low']
-    features_stat = [['processed_data', 'creator_data', 'other_coins_30_return']]
-    features_stat = []
-    epochs = 25
+
+    features_stat = [["btc_market_data", "vol_24hr"], ["btc_market_data", "price_change_24h"], ["btc_market_data", "price_change_7d"],
+                     ["sol_market_data", "vol_24hr"], ["sol_market_data", "price_change_24h"], ["sol_market_data", "price_change_7d"],
+                    ["creator_data", "other_coins_30_return"]]
+
+
+    epochs = 20
     hidden = 20
     is_random = False
     batch = 1
-    dropout = 0.2
+    dropout = 0
     print(f'Running for {features_mov}, {features_stat}, {epochs}, {hidden}, {is_random}, {batch}, {dropout}, {CHANGE_NEEDED}')
     train_model(train, val, num_epochs = epochs, hidden_size = hidden, feature_names_mov = features_mov, feature_names_static=features_stat, randomized = is_random, silent = False, batch_size = batch, dropout = dropout)
-

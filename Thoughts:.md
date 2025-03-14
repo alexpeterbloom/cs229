@@ -1,5 +1,12 @@
 Use: source venv/bin/activate && export PATH=$(pwd)/venv/bin:$PATH
 
+
+Conceptual thoughts; find model that predicts with little overfitting,
+then just take when the training accuracy of the model was highest.
+
+
+
+
 ./venv/bin/python neural_network.py 
 
 Thoughts:

@@ -45,12 +45,12 @@ ALL_MODELS = ONLYCONT + ONLYLOG
 #continuous is whether our predictions where continuous
 #eval data is function to label y data based on whether model is logistic or continuous
 
-def test_individual_models(models, train_folders, test_folders, change, eval_data, first_min):
+def test_individual_models(models, train_folders, test_folders, change, eval_data, first_min, feature_names):
     train_csvs = gather_all_csv(train_folders)
     test_csvs = gather_all_csv(test_folders)
 
-    X_train, y_train, pct_train = load_dataset(train_csvs, change, first_min, eval_data)
-    X_test,  y_test,  pct_test  = load_dataset(test_csvs, change, first_min, eval_data)
+    X_train, train_stat, y_train, pct_train = load_dataset(train_csvs, change, first_min, eval_data, feature_names, [])
+    X_test,  test_stat, y_test,  pct_test  = load_dataset(test_csvs, change, first_min, eval_data, feature_names, [])
 
 
     print(f"Average % change (Train): {average_percent_change(pct_train):.2f}%")
@@ -77,10 +77,11 @@ def cont_and_logistic_voting(models, train_folders, test_folders, change, first_
     test_csvs = gather_all_csv(test_folders)
 
 
-    X_train_cont, y_train_cont, pct_train = load_dataset(train_csvs, change, first_min, continuous_eval, feature_names)
+    X_train_cont, x_stat, y_train_cont, pct_train = load_dataset(train_csvs, change, first_min, continuous_eval, feature_names, [])
 
-    X_train_log, y_train_log, pct_train = load_dataset(train_csvs, change, first_min, logistic_eval, feature_names)
-    X_test,  y_test,  pct_test = load_dataset(test_csvs, change, first_min, logistic_eval, feature_names)   
+
+    X_train_log, x_stat, y_train_log, pct_train = load_dataset(train_csvs, change, first_min, logistic_eval, feature_names, [])
+    X_test,  x_stat, y_test,  pct_test = load_dataset(test_csvs, change, first_min, logistic_eval, feature_names, [])   
    
     print(f"Average % change (Train): {average_percent_change(pct_train):.2f}%")
     print(f"Average % change (Test) : {average_percent_change(pct_test):.2f}%\n")
@@ -107,12 +108,6 @@ def cont_and_logistic_voting(models, train_folders, test_folders, change, first_
     preds = combine_logistic_continuous_preds(logistic_predictions, continuous_predictions, "Total_Sum")
 
 
-    evaluate(preds, y_test, pct_test)
-
-
-    print()
-    print()
-    print()
 
 
 
@@ -122,7 +117,7 @@ def cont_and_logistic_voting(models, train_folders, test_folders, change, first_
 def main():
 
 
-    allModels = ONLYCONT + ONLYLOG
+    allModels = [[AdaBoostClassifier(n_estimators=50), "AdaBoost", 0]]
 
 
 
@@ -133,23 +128,26 @@ def main():
 
 
 
-    train = [ 'sep1', 'sep2', 'oct1', 'oct2', 'nov1', 'nov2', 'dec1', 'dec2']
-    val = ['jan1', 'jan2', 'feb1', 'feb2']
-    train_folders = []
-    test_folders = []
-    for t in train:
-        train_folders += data[t]
-    for v in val:
-        test_folders += data[v]
+    train = ['sep', 'oct', 'nov', 'dec', 'jan']
+    val = ['feb']
 
+    folder_names_dict = get_folder_names(prefix = "data/", suffix = "_json_padded")
+    
+
+    train_folders = []
+    for month in train:
+        train_folders.append(folder_names_dict[month])
+
+    val_folders = []
+    for month in val:
+        val_folders.append(folder_names_dict[month])
  
 
     first_minutes = 30
 
-    confirm_no_overlap(train_folders, test_folders)
+    confirm_no_overlap(train, val)
 
     feature_names = ['open','high','low','close','volume']
-    cont_and_logistic_voting(allModels, train_folders, test_folders, 1, first_minutes, feature_names)
+    test_individual_models(allModels, train_folders, val_folders, CHANGE_NEEDED, logistic_eval, 30, feature_names)
 
-    
 main()

@@ -8,13 +8,23 @@ import datetime
 import random
 from torch.utils.data import Dataset, DataLoader
 import torch
-import json
+import json 
+import math
 
-VOTES_NEEDED = 4
-CHANGE_NEEDED = 0.8
+VOTES_NEEDED = 1
+CHANGE_NEEDED = 0.95
 FIRST_N_MINUTES = 30
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #using m2 gpu
+
+def ensemble_predictions(train_X_mov, train_X_stat, models):
+    binary_predictions = [(torch.sigmoid(model(train_X_mov, static_x=train_X_stat)) > 0.5).int() for model in models]
+    stacked_predictions = torch.stack(binary_predictions)
+    votes = stacked_predictions.sum(dim=0)
+    threshold = math.ceil(4)
+    final_predictions = (votes >= threshold).int()
+
+    return final_predictions
 
 
 def read_our_json_file(file_name):
@@ -25,8 +35,12 @@ def read_our_json_file(file_name):
     return df, json_data
 
 
-def print_ones_in_val(model, val_data_loader):
-    model.eval()
+def print_ones_in_val(model, val_data_loader, ensemble = False, models = None):
+    if model is not None:
+        model.eval()
+    else:
+        for each_model in models:
+            each_model.eval()
     print("Printing all datapoints we predicted 1 for")
     total_return = 0
     total_capped_return = 0
@@ -37,10 +51,14 @@ def print_ones_in_val(model, val_data_loader):
             
             if stat_x_mov.numel() > 0:
                 stat_x_mov = stat_x_mov.to(device)
-            outputs = model(batch_x_mov, static_x = stat_x_mov)
 
-            predictions = torch.sigmoid(outputs)
-            predictions = (predictions > 0.5).int().cpu().numpy().flatten() #cpu technically not necessary
+            if ensemble:
+                predictions = ensemble_predictions(batch_x_mov, stat_x_mov, models)
+            else:
+                outputs = model(batch_x_mov, static_x = stat_x_mov)
+
+                predictions = torch.sigmoid(outputs)
+                predictions = (predictions > 0.5).int().cpu().numpy().flatten() #cpu technically not necessary
 
             for i, pred in enumerate(predictions):
                 if pred == 1:
@@ -69,6 +87,7 @@ def get_percent_return(csv_name):
     capped_pct_change = min(pct_change, 500)
     if pct_change > 1000:
         print(csv_name, 'big')
+        pass
     return pct_change, capped_pct_change
 
 
@@ -130,11 +149,11 @@ def graph_train_valid_error(train_accuracy, valid_accuracy, feature_names_all):
     x_values = [i + 1 for i in range(len(train_accuracy))]
 
     plt.figure(figsize=(8, 6))
-    plt.plot(x_values, train_accuracy, label='Training Accuracy', marker='o')
-    plt.plot(x_values, valid_accuracy, label='Validation Accuracy', marker='x')
-    plt.xlabel('Epoch (Index + 1)')
-    plt.ylabel('Accuracy')
-    plt.title(f'Training and Validation Accuracy over {feature_names_all.append(CHANGE_NEEDED)}')
+    plt.plot(x_values, train_accuracy, label='Training Precision', marker='o')
+    plt.plot(x_values, valid_accuracy, label='Validation Precision', marker='x')
+    plt.xlabel('Epoch')
+    plt.ylabel('Precision')
+    plt.title(f'Training and Validation Precision of Neural Network')
     plt.legend()
     plt.show()
 
@@ -216,7 +235,7 @@ def get_folder_names(prefix = "init_data/", suffix = "_json_padded"):
 def get_static_features(json_data, static_feature_names):
     data = []
     for name in static_feature_names:
-        sub_json = json_data
+        sub_json = json_data['processed_data']
         for sub_category in name:
             sub_json = sub_json[sub_category]
         data.append(sub_json)
@@ -285,6 +304,7 @@ def load_dataset(csv_files, change, x, evaluation_func, movement_feature_names, 
 
         if json_data['processed_data']['above_bar_' + str(first_min) + "_min_in"] == 0:
             continue
+            
 
 
         
