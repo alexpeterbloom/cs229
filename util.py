@@ -12,7 +12,7 @@ import json
 import math
 
 VOTES_NEEDED = 1
-CHANGE_NEEDED = 0.95
+CHANGE_NEEDED = 0.2
 FIRST_N_MINUTES = 30
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #using m2 gpu
@@ -33,46 +33,114 @@ def read_our_json_file(file_name):
 
     df = pd.DataFrame(json_data["ohlcv_data"])
     return df, json_data
+def print_ones_in_val(model, val_data_loader, ensemble=False, models=None, save_file=None):
 
-
-def print_ones_in_val(model, val_data_loader, ensemble = False, models = None):
     if model is not None:
         model.eval()
     else:
         for each_model in models:
             each_model.eval()
+            
     print("Printing all datapoints we predicted 1 for")
     total_return = 0
     total_capped_return = 0
     one_count = 0
+    predicted_files = []  # to store file names where prediction == 1
+
     with torch.no_grad():
         for batch_x_mov, stat_x_mov, _, batch_file_names in val_data_loader:
             batch_x_mov = batch_x_mov.to(device)
-            
             if stat_x_mov.numel() > 0:
                 stat_x_mov = stat_x_mov.to(device)
 
             if ensemble:
                 predictions = ensemble_predictions(batch_x_mov, stat_x_mov, models)
             else:
-                outputs = model(batch_x_mov, static_x = stat_x_mov)
-
+                outputs = model(batch_x_mov, static_x=stat_x_mov)
                 predictions = torch.sigmoid(outputs)
-                predictions = (predictions > 0.5).int().cpu().numpy().flatten() #cpu technically not necessary
+                predictions = (predictions > 0.5).int().cpu().numpy().flatten()
 
             for i, pred in enumerate(predictions):
                 if pred == 1:
-                    #print(f'Predicted 1 for file: {batch_file_names[i]}')
+                    # Optionally, you can print the file name:
+                    # print(f'Predicted 1 for file: {batch_file_names[i]}')
+                    predicted_files.append(batch_file_names[i])
                     change, capped_change = get_percent_return(batch_file_names[i])
                     one_count += 1
                     total_return += change
                     total_capped_return += capped_change
-    print(f"Average capped change of {total_capped_return/one_count}")
-    print(f"Average change of {total_return/one_count}")
-        
+
+    if one_count > 0:
+        print(f"Average capped change: {total_capped_return/one_count}")
+        print(f"Average change: {total_return/one_count}")
+    else:
+        print("No datapoints predicted as 1 were found.")
+
+    # Save predicted file names if a file name was provided
+    if save_file is not None:
+        try:
+            with open(save_file, 'w') as f:
+                for file_name in predicted_files:
+                    f.write(file_name + "\n")
+            print(f"Saved predicted file names to {save_file}")
+        except Exception as e:
+            print(f"Error saving file names: {e}")
 
 
+
+
+
+def plot_multiple_returns_histogram(list_of_prediction_files, bins=30):
     
+    # Create a color map so each file's histogram is a different color
+    colors = plt.cm.rainbow(np.linspace(0, 1, len(list_of_prediction_files)))
+
+    plt.figure(figsize=(10, 6))
+    
+    for idx, pred_file in enumerate(list_of_prediction_files):
+        returns_for_this_file = []
+        
+        # Safely open and read each line in pred_file
+        try:
+            with open(pred_file, 'r') as f:
+                lines = f.read().splitlines()
+        except Exception as e:
+            print(f"Error reading file {pred_file}: {e}")
+            continue
+        
+        # For each line, we expect a JSON file path
+        for line in lines:
+            # Skip empty lines
+            if not line.strip():
+                continue
+            
+            try:
+                pct_change, _ = get_percent_return(line)
+                pct_change = min(500, pct_change)
+                returns_for_this_file.append(pct_change)
+            except Exception as e:
+                # If there's an issue reading/parsing the JSON file
+                print(f"Error processing file {line}: {e}")
+
+        # If no valid returns were gathered, skip plotting
+        if not returns_for_this_file:
+            print(f"No valid returns found in {pred_file}, skipping plot.")
+            continue
+        
+        # Plot histogram for this file's returns
+        label_name = os.path.basename(pred_file)  # label is the text file name
+        plt.hist(returns_for_this_file, 
+                 bins=bins, 
+                 alpha=0.5, 
+                 color=colors[idx], 
+                 label=label_name, 
+                 edgecolor='black')
+
+    plt.xlabel('Percent Return')
+    plt.ylabel('Frequency')
+    plt.title('Distribution of Returns by Prediction File')
+    plt.legend()
+    plt.show()
 
 
 def get_percent_return(csv_name):
@@ -85,9 +153,7 @@ def get_percent_return(csv_name):
 
     pct_change = ((final_open - open_x)/ open_x) * 100
     capped_pct_change = min(pct_change, 500)
-    if pct_change > 1000:
-        print(csv_name, 'big')
-        pass
+
     return pct_change, capped_pct_change
 
 
@@ -153,7 +219,7 @@ def graph_train_valid_error(train_accuracy, valid_accuracy, feature_names_all):
     plt.plot(x_values, valid_accuracy, label='Validation Precision', marker='x')
     plt.xlabel('Epoch')
     plt.ylabel('Precision')
-    plt.title(f'Training and Validation Precision of Neural Network')
+    plt.title(f'Training and Validation Precision of Final LSTM')
     plt.legend()
     plt.show()
 
@@ -190,11 +256,11 @@ def get_deep_learning_data(train_months, val_months, feature_names_mov, feature_
             val_csvs = all_csvs[20000:]
         
 
-    X_train_mov, X_train_stat, y_train, pct_train = load_dataset(train_csvs, CHANGE_NEEDED, FIRST_N_MINUTES, logistic_eval, feature_names_mov, feature_names_static,
+    X_train_mov, X_train_stat, y_train, pct_train, included_files = load_dataset(train_csvs, CHANGE_NEEDED, FIRST_N_MINUTES, logistic_eval, feature_names_mov, feature_names_static,
                                         silent = silent, days_of_week=days_of_week_train, days_from_begin=dif_from_begin_train)
 
 
-    X_val_mov, X_val_stat, y_val, pct_val = load_dataset(val_csvs, CHANGE_NEEDED, FIRST_N_MINUTES, logistic_eval, feature_names_mov, feature_names_static,
+    X_val_mov, X_val_stat, y_val, pct_val, included_files = load_dataset(val_csvs, CHANGE_NEEDED, FIRST_N_MINUTES, logistic_eval, feature_names_mov, feature_names_static,
                                         silent = silent, days_of_week=days_of_week_val, days_from_begin=dif_from_begin_val)
 
 
@@ -207,7 +273,7 @@ def get_deep_learning_data(train_months, val_months, feature_names_mov, feature_
         print(f'Average change of train: {sum(pct_train)/len(pct_train)}')
         print(f'Average change of test: {sum(pct_val)/len(pct_val)}')
 
-    return X_train_mov, X_train_stat, y_train, X_val_mov, X_val_stat, y_val, val_csvs
+    return X_train_mov, X_train_stat, y_train, X_val_mov, X_val_stat, y_val, included_files
 
 
 
@@ -240,7 +306,7 @@ def get_static_features(json_data, static_feature_names):
             sub_json = sub_json[sub_category]
         data.append(sub_json)
 
-    if json_data['processed_data']['above_bar_15_min_in'] == 0 and json_data['processed_data']['above_bar_30_min_in'] == 0:
+    if json_data['processed_data']['above_bar_15_min_in'] == "0" and json_data['processed_data']['above_bar_30_min_in'] == "0":
         raise ValueError("Datapoint should never have been in train or test set, died less than 15/30 minutes in")
     return data
 
@@ -279,6 +345,8 @@ def logistic_eval(final_open, open_x, change):
 def load_dataset(csv_files, change, x, evaluation_func, movement_feature_names, static_feature_names, store_full_df = False, silent = False, 
                 days_of_week = None, days_from_begin = None, first_min = 30):
                 
+
+    included_files = []
     X_mov, y, X_stat, pct_changes = [], [], [], []
     num_processed = 0
     full_dfs = []
@@ -301,13 +369,15 @@ def load_dataset(csv_files, change, x, evaluation_func, movement_feature_names, 
             print(f'Problem: Failed To Read Dataframe in Util with error {e}')
             continue
 
-
-        if json_data['processed_data']['above_bar_' + str(first_min) + "_min_in"] == 0:
+        skipped = False
+        if int(json_data['processed_data']['above_bar_' + str(first_min) + "_min_in"]) != 1:
+            skipped = True
             continue
-            
+        if skipped:
+            print("PANICCCC")
 
 
-        
+        included_files.append(csv_file)
         days_dist = None
         if days_from_begin != None:
             days_dist = days_from_begin[i]
@@ -359,7 +429,7 @@ def load_dataset(csv_files, change, x, evaluation_func, movement_feature_names, 
     if store_full_df:
         return X_mov, X_stat, y, pct_changes, full_dfs
     
-    return X_mov, X_stat, y, pct_changes
+    return X_mov, X_stat, y, pct_changes, included_files
 
 
 

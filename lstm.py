@@ -101,7 +101,7 @@ def get_data_loaders(train_months, val_months, feature_names_mov, feature_names_
     return train_data_loader, val_data_loader
 
 
-def train_model(train_months, val_months, num_epochs, hidden_size, feature_names_mov, feature_names_static, randomized = False, silent = False, batch_size = 30, dropout = 0, lr = 0.001, train_data_loader = None, val_data_loader = None, graph  = True):
+def train_model(train_months, val_months, num_epochs, hidden_size, feature_names_mov, feature_names_static, randomized = False, silent = False, batch_size = 30, dropout = 0, lr = 0.00001, train_data_loader = None, val_data_loader = None, graph  = True):
     if train_data_loader is None:
         train_data_loader, val_data_loader = get_data_loaders(train_months, val_months, feature_names_mov, feature_names_static, randomized, silent, batch_size= batch_size)
     input_size_mov = len(feature_names_mov)
@@ -140,7 +140,7 @@ def train_model(train_months, val_months, num_epochs, hidden_size, feature_names
             optimizer.step()
 
         if not silent:
-            if (epoch+1) % 3 == 0:
+            if (epoch+1) % 1 == 0:
                 t_acc, v_acc = train_test_accuracy(model, train_data_loader, val_data_loader, epoch, silent)
                 train_acc.append(t_acc)
                 val_acc.append(v_acc)
@@ -148,11 +148,14 @@ def train_model(train_months, val_months, num_epochs, hidden_size, feature_names
     if not silent:
         train_test_accuracy(model, train_data_loader, val_data_loader, epoch, silent)
         graph_train_valid_error(train_acc, val_acc, feature_names_mov + feature_names_static + [dropout])
-
+    print_ones_in_val(model, val_data_loader, ensemble = False, models = None, save_file = "many")
     return model
 
+
+#'ensLSTM', 'LSTM', 'Ensemble', 'Ada', "NN"],
 if __name__ == '__main__':
     train = ['sep', 'oct', 'nov', 'dec', 'jan']
+    train = ['dec']
     val = ['feb']
 
 
@@ -162,11 +165,11 @@ if __name__ == '__main__':
                      ["sol_market_data", "vol_24hr"], ["sol_market_data", "price_change_24h"], ["sol_market_data", "price_change_7d"],
                     ["creator_data", "other_coins_30_return"]]
 
-
-    epochs = 20
+    features_stat = []
+    epochs = 10
     hidden = 20
     is_random = False
-    batch = 1
+    batch = 100
     dropout = 0
     print(f'Running for {features_mov}, {features_stat}, {epochs}, {hidden}, {is_random}, {batch}, {dropout}, {CHANGE_NEEDED}')
     train_model(train, val, num_epochs = epochs, hidden_size = hidden, feature_names_mov = features_mov, feature_names_static=features_stat, randomized = is_random, silent = False, batch_size = batch, dropout = dropout)

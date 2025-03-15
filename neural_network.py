@@ -77,7 +77,7 @@ def train_model(train_months, val_months, feature_names, num_epochs = 10, silent
 
 
     for epoch in range(num_epochs):
-        if epoch % 5 == 0 and not silent:
+        if epoch % 1 == 0 and not silent:
             t_acc, v_acc = train_test_accuracy(model, train_data_loader, val_data_loader, epoch)
             train_acc.append(t_acc)
             valid_acc.append(v_acc)
